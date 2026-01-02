@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -12,6 +13,12 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    role = Column(String, default="viewer")  # 默认角色: viewer, trader, admin
+    encrypted_api_key = Column(Text, nullable=True)  # 加密的API密钥
+    encrypted_api_secret = Column(Text, nullable=True)  # 加密的API密钥密钥
+
+    # 关系
+    roles = relationship("RoleModel", secondary="user_roles", back_populates="users")
 
 
 class TradingBot(Base):

@@ -6,8 +6,9 @@ from app.database import engine
 from app.models import Base
 from app.routers import (
     auth, bots, trades, orders, risk, backtest,
-    notifications, rbac, optimization, exchange, analytics, strategies
+    notifications, rbac, optimization, exchange, analytics, strategies, websocket, audit_log
 )
+from app.middleware import AuditLogMiddleware
 from app.websocket import (
     manager,
     bot_status_stream,
@@ -41,6 +42,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# 添加审计日志中间件
+if settings.AUDIT_LOG_ENABLED:
+    app.add_middleware(AuditLogMiddleware)
+
 # 挂载静态文件
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -66,6 +71,8 @@ app.include_router(optimization.router, prefix="/api/optimize", tags=["系统优
 app.include_router(exchange.router, prefix="/api/exchange", tags=["交易所"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["数据分析"])
 app.include_router(strategies.router, prefix="/api/strategies", tags=["高级策略"])
+app.include_router(websocket.router, tags=["WebSocket"])
+app.include_router(audit_log.router, tags=["审计日志"])
 
 
 @app.get("/")

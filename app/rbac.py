@@ -269,22 +269,38 @@ def check_user_permission(user, required_permission: Permission) -> bool:
     """
     检查用户是否有指定权限
 
+    兼容两种角色模式：
+    1. user.role 字符串（"admin", "trader", "viewer"）
+    2. user.roles 关系列表
+
     Args:
-        user: 用户对象（包含roles属性）
+        user: 用户对象（包含role或roles属性）
         required_permission: 需要的权限
 
     Returns:
         是否有权限
     """
-    if not user or not hasattr(user, 'roles'):
+    if not user:
         return False
 
     # 收集用户所有角色的权限
     user_permissions = set()
-    for role_obj in user.roles:
-        role = Role(role_obj.name)
-        role_perms = RoleManager.get_role_permissions(role)
-        user_permissions.update(role_perms)
+
+    # 方式1：从 user.roles 关系获取（RBAC多对多模式）
+    if hasattr(user, 'roles') and user.roles:
+        for role_obj in user.roles:
+            role = Role(role_obj.name)
+            role_perms = RoleManager.get_role_permissions(role)
+            user_permissions.update(role_perms)
+
+    # 方式2：从 user.role 字符串获取（简化模式）
+    elif hasattr(user, 'role') and user.role:
+        try:
+            role = Role(user.role)
+            role_perms = RoleManager.get_role_permissions(role)
+            user_permissions.update(role_perms)
+        except ValueError:
+            logger.warning(f"无效的角色: {user.role}")
 
     # 检查是否有需要的权限
     return required_permission.value in user_permissions
@@ -294,20 +310,36 @@ def get_user_permissions(user) -> List[str]:
     """
     获取用户的所有权限
 
+    兼容两种角色模式：
+    1. user.role 字符串（"admin", "trader", "viewer"）
+    2. user.roles 关系列表
+
     Args:
         user: 用户对象
 
     Returns:
         权限列表
     """
-    if not user or not hasattr(user, 'roles'):
+    if not user:
         return []
 
     permissions = set()
-    for role_obj in user.roles:
-        role = Role(role_obj.name)
-        role_perms = RoleManager.get_role_permissions(role)
-        permissions.update(role_perms)
+
+    # 方式1：从 user.roles 关系获取（RBAC多对多模式）
+    if hasattr(user, 'roles') and user.roles:
+        for role_obj in user.roles:
+            role = Role(role_obj.name)
+            role_perms = RoleManager.get_role_permissions(role)
+            permissions.update(role_perms)
+
+    # 方式2：从 user.role 字符串获取（简化模式）
+    elif hasattr(user, 'role') and user.role:
+        try:
+            role = Role(user.role)
+            role_perms = RoleManager.get_role_permissions(role)
+            permissions.update(role_perms)
+        except ValueError:
+            logger.warning(f"无效的角色: {user.role}")
 
     return list(permissions)
 
@@ -316,17 +348,27 @@ def is_admin(user) -> bool:
     """
     检查用户是否是管理员
 
+    兼容两种角色模式：
+    1. user.role 字符串（"admin"）
+    2. user.roles 关系列表
+
     Args:
         user: 用户对象
 
     Returns:
         是否是管理员
     """
-    if not user or not hasattr(user, 'roles'):
+    if not user:
         return False
 
-    for role_obj in user.roles:
-        if role_obj.name == Role.ADMIN.value:
-            return True
+    # 方式1：从 user.roles 关系获取
+    if hasattr(user, 'roles') and user.roles:
+        for role_obj in user.roles:
+            if role_obj.name == Role.ADMIN.value:
+                return True
+
+    # 方式2：从 user.role 字符串获取
+    if hasattr(user, 'role') and user.role:
+        return user.role == Role.ADMIN.value
 
     return False
