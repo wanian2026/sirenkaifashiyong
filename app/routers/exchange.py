@@ -1,23 +1,22 @@
 """
 交易所API路由
-提供市场数据查询接口
+提供市场数据查询接口（基于真实交易所数据）
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.exchange import ExchangeAPI
+from app.exchange import get_exchange_api
+from app.config import settings
 from typing import List, Dict, Optional
 import logging
-import random
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-
-# 模拟市场数据生成器
+# 兼容性：如果连接失败，回退到模拟数据生成器
 def generate_ticker_data(symbol: str) -> Dict:
     """生成模拟的行情数据"""
     base_price = 50000 if 'BTC' in symbol else 3000 if 'ETH' in symbol else 100
@@ -148,11 +147,26 @@ async def get_ticker(
     """
     try:
         logger.info(f"获取行情: {symbol}")
-        data = generate_ticker_data(symbol)
-        return {
-            "success": True,
-            "data": data
-        }
+
+        # 尝试从真实交易所获取数据
+        try:
+            exchange_api = get_exchange_api()
+            data = await exchange_api.get_ticker(symbol)
+            return {
+                "success": True,
+                "data": data,
+                "source": "real"
+            }
+        except Exception as e:
+            logger.warning(f"从真实交易所获取数据失败，使用模拟数据: {e}")
+            # 回退到模拟数据
+            data = generate_ticker_data(symbol)
+            return {
+                "success": True,
+                "data": data,
+                "source": "simulated",
+                "warning": "当前使用模拟数据，请检查交易所配置"
+            }
     except Exception as e:
         logger.error(f"获取行情失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -175,37 +189,52 @@ async def get_orderbook(
     """
     try:
         logger.info(f"获取深度数据: {symbol}, limit={limit}")
-        data = generate_orderbook_data(symbol, limit)
 
-        # 计算累计量用于深度条
-        total_bid_volume = sum([bid[1] for bid in data['bids']])
-        total_ask_volume = sum([ask[1] for ask in data['asks']])
-
-        return {
-            "success": True,
-            "data": {
-                "symbol": symbol,
-                "bids": [
-                    {
-                        "price": bid[0],
-                        "amount": bid[1],
-                        "total": sum([b[1] for b in data['bids'][:i+1]]),
-                        "total_percent": (sum([b[1] for b in data['bids'][:i+1]]) / total_bid_volume * 100) if total_bid_volume > 0 else 0
-                    }
-                    for i, bid in enumerate(data['bids'])
-                ],
-                "asks": [
-                    {
-                        "price": ask[0],
-                        "amount": ask[1],
-                        "total": sum([a[1] for a in data['asks'][:i+1]]),
-                        "total_percent": (sum([a[1] for a in data['asks'][:i+1]]) / total_ask_volume * 100) if total_ask_volume > 0 else 0
-                    }
-                    for i, ask in enumerate(data['asks'])
-                ],
-                "timestamp": data['timestamp']
+        # 尝试从真实交易所获取数据
+        try:
+            exchange_api = get_exchange_api()
+            data = await exchange_api.get_orderbook(symbol, limit)
+            return {
+                "success": True,
+                "data": data,
+                "source": "real"
             }
-        }
+        except Exception as e:
+            logger.warning(f"从真实交易所获取数据失败，使用模拟数据: {e}")
+            # 回退到模拟数据
+            data = generate_orderbook_data(symbol, limit)
+
+            # 计算累计量用于深度条
+            total_bid_volume = sum([bid[1] for bid in data['bids']])
+            total_ask_volume = sum([ask[1] for ask in data['asks']])
+
+            return {
+                "success": True,
+                "data": {
+                    "symbol": symbol,
+                    "bids": [
+                        {
+                            "price": bid[0],
+                            "amount": bid[1],
+                            "total": sum([b[1] for b in data['bids'][:i+1]]),
+                            "total_percent": (sum([b[1] for b in data['bids'][:i+1]]) / total_bid_volume * 100) if total_bid_volume > 0 else 0
+                        }
+                        for i, bid in enumerate(data['bids'])
+                    ],
+                    "asks": [
+                        {
+                            "price": ask[0],
+                            "amount": ask[1],
+                            "total": sum([a[1] for a in data['asks'][:i+1]]),
+                            "total_percent": (sum([a[1] for a in data['asks'][:i+1]]) / total_ask_volume * 100) if total_ask_volume > 0 else 0
+                        }
+                        for i, ask in enumerate(data['asks'])
+                    ],
+                    "timestamp": data['timestamp']
+                },
+                "source": "simulated",
+                "warning": "当前使用模拟数据，请检查交易所配置"
+            }
     except Exception as e:
         logger.error(f"获取深度数据失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -230,12 +259,26 @@ async def get_ohlcv(
     """
     try:
         logger.info(f"获取K线数据: {symbol}, timeframe={timeframe}, limit={limit}")
-        data = generate_ohlcv_data(symbol, timeframe, limit)
 
-        return {
-            "success": True,
-            "data": data
-        }
+        # 尝试从真实交易所获取数据
+        try:
+            exchange_api = get_exchange_api()
+            data = await exchange_api.get_ohlcv(symbol, timeframe, limit)
+            return {
+                "success": True,
+                "data": data,
+                "source": "real"
+            }
+        except Exception as e:
+            logger.warning(f"从真实交易所获取数据失败，使用模拟数据: {e}")
+            # 回退到模拟数据
+            data = generate_ohlcv_data(symbol, timeframe, limit)
+            return {
+                "success": True,
+                "data": data,
+                "source": "simulated",
+                "warning": "当前使用模拟数据，请检查交易所配置"
+            }
     except Exception as e:
         logger.error(f"获取K线数据失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -258,12 +301,26 @@ async def get_trades(
     """
     try:
         logger.info(f"获取成交记录: {symbol}, limit={limit}")
-        data = generate_trades_data(symbol, limit)
 
-        return {
-            "success": True,
-            "data": data
-        }
+        # 尝试从真实交易所获取数据
+        try:
+            exchange_api = get_exchange_api()
+            data = await exchange_api.get_trades(symbol, limit)
+            return {
+                "success": True,
+                "data": data,
+                "source": "real"
+            }
+        except Exception as e:
+            logger.warning(f"从真实交易所获取数据失败，使用模拟数据: {e}")
+            # 回退到模拟数据
+            data = generate_trades_data(symbol, limit)
+            return {
+                "success": True,
+                "data": data,
+                "source": "simulated",
+                "warning": "当前使用模拟数据，请检查交易所配置"
+            }
     except Exception as e:
         logger.error(f"获取成交记录失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -278,18 +335,31 @@ async def get_supported_pairs():
         交易对列表
     """
     try:
-        pairs = [
-            {"symbol": "BTC/USDT", "name": "Bitcoin", "base": "BTC", "quote": "USDT"},
-            {"symbol": "ETH/USDT", "name": "Ethereum", "base": "ETH", "quote": "USDT"},
-            {"symbol": "BNB/USDT", "name": "Binance Coin", "base": "BNB", "quote": "USDT"},
-            {"symbol": "SOL/USDT", "name": "Solana", "base": "SOL", "quote": "USDT"},
-            {"symbol": "XRP/USDT", "name": "Ripple", "base": "XRP", "quote": "USDT"},
-        ]
-
-        return {
-            "success": True,
-            "data": pairs
-        }
+        # 尝试从真实交易所获取数据
+        try:
+            exchange_api = get_exchange_api()
+            data = await exchange_api.get_pairs()
+            return {
+                "success": True,
+                "data": data,
+                "source": "real"
+            }
+        except Exception as e:
+            logger.warning(f"从真实交易所获取数据失败，使用默认交易对: {e}")
+            # 回退到默认交易对
+            pairs = [
+                {"symbol": "BTC/USDT", "name": "Bitcoin", "base": "BTC", "quote": "USDT"},
+                {"symbol": "ETH/USDT", "name": "Ethereum", "base": "ETH", "quote": "USDT"},
+                {"symbol": "BNB/USDT", "name": "Binance Coin", "base": "BNB", "quote": "USDT"},
+                {"symbol": "SOL/USDT", "name": "Solana", "base": "SOL", "quote": "USDT"},
+                {"symbol": "XRP/USDT", "name": "Ripple", "base": "XRP", "quote": "USDT"},
+            ]
+            return {
+                "success": True,
+                "data": pairs,
+                "source": "simulated",
+                "warning": "当前使用默认交易对，请检查交易所配置"
+            }
     except Exception as e:
         logger.error(f"获取交易对列表失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -309,25 +379,65 @@ async def get_24h_stats(
         24小时统计数据（最高、最低、成交量、成交额）
     """
     try:
-        ticker = generate_ticker_data(symbol)
-
-        stats = {
-            "symbol": symbol,
-            "high": ticker['high'],
-            "low": ticker['low'],
-            "volume": ticker['volume'],
-            "quoteVolume": ticker['quoteVolume'],
-            "change": ticker['change'],
-            "changePercent": ticker['percentage'],
-            "open": ticker['low'] / 0.98,  # 估算开盘价
-            "close": ticker['last'],
-            "timestamp": ticker['timestamp']
-        }
-
-        return {
-            "success": True,
-            "data": stats
-        }
+        # 尝试从真实交易所获取数据
+        try:
+            exchange_api = get_exchange_api()
+            data = await exchange_api.get_24h_stats(symbol)
+            return {
+                "success": True,
+                "data": data,
+                "source": "real"
+            }
+        except Exception as e:
+            logger.warning(f"从真实交易所获取数据失败，使用模拟数据: {e}")
+            # 回退到模拟数据
+            ticker = generate_ticker_data(symbol)
+            stats = {
+                "symbol": symbol,
+                "high": ticker['high'],
+                "low": ticker['low'],
+                "volume": ticker['volume'],
+                "quoteVolume": ticker['quoteVolume'],
+                "change": ticker['change'],
+                "changePercent": ticker['percentage'],
+                "open": ticker['low'] / 0.98,  # 估算开盘价
+                "close": ticker['last'],
+                "timestamp": ticker['timestamp']
+            }
+            return {
+                "success": True,
+                "data": stats,
+                "source": "simulated",
+                "warning": "当前使用模拟数据，请检查交易所配置"
+            }
     except Exception as e:
         logger.error(f"获取24小时统计数据失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/test-connection")
+async def test_connection():
+    """
+    测试交易所连接
+
+    Returns:
+        连接状态信息
+    """
+    try:
+        exchange_api = get_exchange_api()
+        result = await exchange_api.test_connection()
+        return {
+            "success": True,
+            "data": result
+        }
+    except Exception as e:
+        logger.error(f"测试连接失败: {e}")
+        return {
+            "success": False,
+            "data": {
+                "exchange": settings.EXCHANGE_ID,
+                "error": str(e),
+                "message": "连接失败"
+            }
+        }
+

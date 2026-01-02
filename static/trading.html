@@ -93,6 +93,9 @@
                         <span class="w-2 h-2 rounded-full bg-yellow-500 mr-2"></span>
                         <span>连接中...</span>
                     </div>
+                    <div id="dataSource" class="hidden flex items-center text-xs px-3 py-1 rounded-full" title="数据来源">
+                        <span></span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -368,20 +371,80 @@
             return { labels, bids, asks };
         }
 
+        // 测试交易所连接
+        async function testExchangeConnection() {
+            try {
+                const response = await axios.get(`${API_BASE}/exchange/test-connection`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.data.success && response.data.data.success) {
+                    updateConnectionStatus('connected', response.data.data.exchange);
+                    return true;
+                } else {
+                    updateConnectionStatus('failed', response.data.data.error);
+                    return false;
+                }
+            } catch (error) {
+                console.error('Test connection error:', error);
+                updateConnectionStatus('failed', '连接失败');
+                return false;
+            }
+        }
+
+        // 更新连接状态
+        function updateConnectionStatus(status, message) {
+            const statusDiv = document.getElementById('connectionStatus');
+            const dot = statusDiv.querySelector('span:first-child');
+            const text = statusDiv.querySelector('span:last-child');
+
+            if (status === 'connected') {
+                dot.className = 'w-2 h-2 rounded-full bg-green-500 mr-2';
+                text.textContent = `已连接: ${message}`;
+            } else if (status === 'failed') {
+                dot.className = 'w-2 h-2 rounded-full bg-red-500 mr-2';
+                text.textContent = `连接失败: ${message}`;
+            }
+        }
+
+        // 显示数据来源
+        function showDataSource(source, warning = null) {
+            const sourceDiv = document.getElementById('dataSource');
+            sourceDiv.classList.remove('hidden');
+
+            if (source === 'real') {
+                sourceDiv.className = 'flex items-center text-xs px-3 py-1 rounded-full bg-green-900/30 border border-green-500/30';
+                sourceDiv.querySelector('span').textContent = '真实数据';
+                sourceDiv.title = '使用真实交易所数据';
+            } else {
+                sourceDiv.className = 'flex items-center text-xs px-3 py-1 rounded-full bg-yellow-900/30 border border-yellow-500/30';
+                sourceDiv.querySelector('span').textContent = '模拟数据';
+                sourceDiv.title = warning || '当前使用模拟数据';
+            }
+        }
+
         // 加载初始数据
         async function loadInitialData() {
             try {
+                // 先测试交易所连接
+                await testExchangeConnection();
+
                 // 加载订单簿
                 const response = await axios.get(`${API_BASE}/exchange/orderbook?symbol=${currentPair}`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
 
                 if (response.data) {
+                    // 显示数据来源
+                    const source = response.data.source || 'unknown';
+                    showDataSource(source, response.data.warning);
+
                     renderOrderBook(response.data);
                 }
             } catch (error) {
                 console.error('Load initial data error:', error);
                 // 使用模拟数据
+                showDataSource('simulated', 'API调用失败，使用模拟数据');
                 renderOrderBook(generateMockOrderBook());
             }
         }

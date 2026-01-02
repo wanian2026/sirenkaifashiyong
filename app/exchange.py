@@ -1,633 +1,342 @@
 """
-交易所API封装模块
-提供统一的交易所接口，支持多个交易所
+交易所API管理模块
+基于CCXT库提供统一的交易所数据访问接口
 """
 
 import ccxt
 import asyncio
-from typing import Dict, List, Optional, Literal
-from decimal import Decimal
+from typing import Dict, List, Optional, Any
 import logging
 from datetime import datetime, timedelta
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 
+class ExchangeManager:
+    """交易所连接管理器"""
+
+    _instances: Dict[str, ccxt.Exchange] = {}
+
+    @classmethod
+    def get_exchange(cls, exchange_id: str = None, api_key: str = None, api_secret: str = None) -> ccxt.Exchange:
+        """
+        获取交易所实例（单例模式）
+
+        Args:
+            exchange_id: 交易所ID (binance, okx, huobi等)
+            api_key: API密钥（可选，用于私有API）
+            api_secret: API密钥密钥（可选）
+
+        Returns:
+            ccxt.Exchange实例
+        """
+        exchange_id = exchange_id or settings.EXCHANGE_ID
+        api_key = api_key or settings.API_KEY
+        api_secret = api_secret or settings.API_SECRET
+
+        # 生成实例键
+        instance_key = f"{exchange_id}_{api_key[:8] if api_key else 'public'}"
+
+        # 如果实例已存在，直接返回
+        if instance_key in cls._instances:
+            return cls._instances[instance_key]
+
+        # 创建新实例
+        try:
+            # 获取交易所类
+            exchange_class = getattr(ccxt, exchange_id)
+
+            # 配置参数
+            config = {
+                'enableRateLimit': True,  # 启用速率限制
+                'timeout': 30000,  # 超时时间30秒
+                'options': {}
+            }
+
+            # 如果提供了API密钥，则配置
+            if api_key and api_secret:
+                config['apiKey'] = api_key
+                config['secret'] = api_secret
+
+                # 特定交易所的额外配置
+                if exchange_id == 'binance':
+                    config['options']['defaultType'] = 'spot'  # 现货交易
+                elif exchange_id == 'okx':
+                    config['options']['defaultType'] = 'swap'  # 合约交易
+
+            # 创建交易所实例
+            exchange = exchange_class(config)
+
+            # 加载市场数据
+            exchange.load_markets()
+
+            # 缓存实例
+            cls._instances[instance_key] = exchange
+
+            logger.info(f"成功创建交易所实例: {exchange_id}")
+            return exchange
+
+        except AttributeError:
+            logger.error(f"不支持的交易所: {exchange_id}")
+            raise ValueError(f"不支持的交易所: {exchange_id}")
+        except Exception as e:
+            logger.error(f"创建交易所实例失败: {e}")
+            raise
+
+    @classmethod
+    def close_all(cls):
+        """关闭所有交易所连接"""
+        for instance in cls._instances.values():
+            try:
+                instance.close()
+            except Exception as e:
+                logger.error(f"关闭交易所连接失败: {e}")
+        cls._instances.clear()
+
+
 class ExchangeAPI:
-    """交易所API统一接口"""
+    """交易所数据API封装"""
 
-    def __init__(
-        self,
-        exchange_id: str,
-        api_key: str,
-        api_secret: str,
-        passphrase: str = None,
-        sandbox: bool = False
-    ):
+    def __init__(self, exchange_id: str = None, api_key: str = None, api_secret: str = None):
         """
-        初始化交易所连接
+        初始化交易所API
 
         Args:
-            exchange_id: 交易所ID（如 'binance', 'okx'）
+            exchange_id: 交易所ID
             api_key: API密钥
-            api_secret: API密钥
-            passphrase: 交易密码（部分交易所需要）
-            sandbox: 是否使用测试环境
+            api_secret: API密钥密钥
         """
-        self.exchange_id = exchange_id
-        self.api_key = api_key
-        self.api_secret = api_secret
-        self.passphrase = passphrase
+        self.exchange = ExchangeManager.get_exchange(exchange_id, api_key, api_secret)
+        self.exchange_id = exchange_id or settings.EXCHANGE_ID
 
-        # 初始化交易所实例
-        exchange_class = getattr(ccxt, exchange_id)
-        config = {
-            'apiKey': api_key,
-            'secret': api_secret,
-            'enableRateLimit': True,
-        }
-
-        if passphrase:
-            config['password'] = passphrase
-
-        if sandbox:
-            config['sandboxMode'] = True
-
-        self.exchange = exchange_class(config)
-        logger.info(f"交易所 {exchange_id} 初始化成功")
-
-    async def place_order(
-        self,
-        symbol: str,
-        side: Literal['buy', 'sell'],
-        order_type: Literal['market', 'limit', 'stop', 'stop_limit'],
-        amount: float,
-        price: float = None,
-        stop_price: float = None,
-        params: Dict = None
-    ) -> Dict:
-        """
-        下单
-
-        Args:
-            symbol: 交易对（如 'BTC/USDT'）
-            side: 买卖方向（'buy' 或 'sell'）
-            order_type: 订单类型（'market', 'limit', 'stop', 'stop_limit'）
-            amount: 数量
-            price: 价格（限价单必填）
-            stop_price: 止损价格（止损单必填）
-            params: 额外参数
-
-        Returns:
-            订单信息
-        """
-        params = params or {}
-
-        try:
-            # 限价单
-            if order_type == 'limit':
-                result = await asyncio.to_thread(
-                    self.exchange.create_order,
-                    symbol,
-                    'limit',
-                    side,
-                    amount,
-                    price,
-                    params
-                )
-
-            # 市价单
-            elif order_type == 'market':
-                result = await asyncio.to_thread(
-                    self.exchange.create_order,
-                    symbol,
-                    'market',
-                    side,
-                    amount,
-                    None,
-                    params
-                )
-
-            # 止损单
-            elif order_type == 'stop':
-                if not stop_price:
-                    raise ValueError("止损单需要 stop_price 参数")
-                params['stopPrice'] = stop_price
-                result = await asyncio.to_thread(
-                    self.exchange.create_order,
-                    symbol,
-                    'stop',
-                    side,
-                    amount,
-                    price,
-                    params
-                )
-
-            # 止损限价单
-            elif order_type == 'stop_limit':
-                if not stop_price or not price:
-                    raise ValueError("止损限价单需要 stop_price 和 price 参数")
-                params['stopPrice'] = stop_price
-                result = await asyncio.to_thread(
-                    self.exchange.create_order,
-                    symbol,
-                    'stop_limit',
-                    side,
-                    amount,
-                    price,
-                    params
-                )
-
-            else:
-                raise ValueError(f"不支持的订单类型: {order_type}")
-
-            logger.info(f"下单成功: {result['id']}, {symbol}, {side}, {order_type}, {amount}")
-            return result
-
-        except Exception as e:
-            logger.error(f"下单失败: {e}")
-            raise
-
-    async def cancel_order(self, order_id: str, symbol: str) -> Dict:
-        """
-        撤单
-
-        Args:
-            order_id: 订单ID
-            symbol: 交易对
-
-        Returns:
-            撤单结果
-        """
-        try:
-            result = await asyncio.to_thread(
-                self.exchange.cancel_order,
-                order_id,
-                symbol
-            )
-            logger.info(f"撤单成功: {order_id}")
-            return result
-        except Exception as e:
-            logger.error(f"撤单失败: {e}")
-            raise
-
-    async def cancel_all_orders(self, symbol: str) -> List[Dict]:
-        """
-        撤销所有订单
-
-        Args:
-            symbol: 交易对
-
-        Returns:
-            撤单结果列表
-        """
-        try:
-            # 获取所有未完成订单
-            orders = await self.get_open_orders(symbol)
-
-            results = []
-            for order in orders:
-                try:
-                    result = await self.cancel_order(order['id'], symbol)
-                    results.append(result)
-                except Exception as e:
-                    logger.error(f"撤销订单 {order['id']} 失败: {e}")
-                    results.append({'id': order['id'], 'status': 'failed', 'error': str(e)})
-
-            return results
-        except Exception as e:
-            logger.error(f"撤销所有订单失败: {e}")
-            raise
-
-    async def get_order(self, order_id: str, symbol: str) -> Dict:
-        """
-        查询订单
-
-        Args:
-            order_id: 订单ID
-            symbol: 交易对
-
-        Returns:
-            订单信息
-        """
-        try:
-            result = await asyncio.to_thread(
-                self.exchange.fetch_order,
-                order_id,
-                symbol
-            )
-            return result
-        except Exception as e:
-            logger.error(f"查询订单失败: {e}")
-            raise
-
-    async def get_open_orders(self, symbol: str = None) -> List[Dict]:
-        """
-        获取未完成订单
-
-        Args:
-            symbol: 交易对（可选）
-
-        Returns:
-            订单列表
-        """
-        try:
-            result = await asyncio.to_thread(
-                self.exchange.fetch_open_orders,
-                symbol
-            )
-            return result
-        except Exception as e:
-            logger.error(f"获取未完成订单失败: {e}")
-            raise
-
-    async def get_closed_orders(self, symbol: str = None, limit: int = 100) -> List[Dict]:
-        """
-        获取已完成订单
-
-        Args:
-            symbol: 交易对（可选）
-            limit: 数量限制
-
-        Returns:
-            订单列表
-        """
-        try:
-            result = await asyncio.to_thread(
-                self.exchange.fetch_closed_orders,
-                symbol,
-                limit=limit
-            )
-            return result
-        except Exception as e:
-            logger.error(f"获取已完成订单失败: {e}")
-            raise
-
-    async def get_ticker(self, symbol: str) -> Dict:
+    async def get_ticker(self, symbol: str) -> Dict[str, Any]:
         """
         获取行情信息
 
         Args:
-            symbol: 交易对
+            symbol: 交易对 (如 BTC/USDT)
 
         Returns:
-            行情信息（包含最新价、24h涨跌幅等）
+            行情数据字典
         """
         try:
-            result = await asyncio.to_thread(
-                self.exchange.fetch_ticker,
-                symbol
-            )
-            return result
+            ticker = await asyncio.to_thread(self.exchange.fetch_ticker, symbol)
+
+            return {
+                "symbol": symbol,
+                "last": ticker.get('last'),
+                "high": ticker.get('high'),
+                "low": ticker.get('low'),
+                "bid": ticker.get('bid'),
+                "ask": ticker.get('ask'),
+                "volume": ticker.get('baseVolume'),
+                "quoteVolume": ticker.get('quoteVolume'),
+                "change": ticker.get('change'),
+                "percentage": ticker.get('percentage'),
+                "timestamp": ticker.get('timestamp')
+            }
         except Exception as e:
-            logger.error(f"获取行情失败: {e}")
+            logger.error(f"获取行情失败 [{symbol}]: {e}")
             raise
 
-    async def get_ohlcv(
-        self,
-        symbol: str,
-        timeframe: str = '1h',
-        limit: int = 100,
-        since: int = None
-    ) -> List[List]:
+    async def get_orderbook(self, symbol: str, limit: int = 20) -> Dict[str, Any]:
         """
-        获取K线数据
-
-        Args:
-            symbol: 交易对
-            timeframe: 时间周期（1m, 5m, 15m, 1h, 4h, 1d等）
-            limit: 数量限制
-            since: 开始时间戳（毫秒）
-
-        Returns:
-            K线数据列表 [[timestamp, open, high, low, close, volume], ...]
-        """
-        try:
-            result = await asyncio.to_thread(
-                self.exchange.fetch_ohlcv,
-                symbol,
-                timeframe,
-                since=since,
-                limit=limit
-            )
-            return result
-        except Exception as e:
-            logger.error(f"获取K线数据失败: {e}")
-            raise
-
-    async def get_order_book(self, symbol: str, limit: int = 20) -> Dict:
-        """
-        获取深度数据
+        获取订单簿深度数据
 
         Args:
             symbol: 交易对
             limit: 深度数量
 
         Returns:
-            深度数据 {bids: [[price, amount], ...], asks: [[price, amount], ...]}
+            订单簿数据
         """
         try:
-            result = await asyncio.to_thread(
-                self.exchange.fetch_order_book,
-                symbol,
-                limit
-            )
-            return result
+            orderbook = await asyncio.to_thread(self.exchange.fetch_order_book, symbol, limit)
+
+            bids = orderbook.get('bids', [])[:limit]
+            asks = orderbook.get('asks', [])[:limit]
+
+            # 计算累计量
+            total_bid_volume = sum([bid[1] for bid in bids])
+            total_ask_volume = sum([ask[1] for ask in asks])
+
+            return {
+                "symbol": symbol,
+                "bids": [
+                    {
+                        "price": bid[0],
+                        "amount": bid[1],
+                        "total": sum([b[1] for b in bids[:i+1]]),
+                        "total_percent": (sum([b[1] for b in bids[:i+1]]) / total_bid_volume * 100) if total_bid_volume > 0 else 0
+                    }
+                    for i, bid in enumerate(bids)
+                ],
+                "asks": [
+                    {
+                        "price": ask[0],
+                        "amount": ask[1],
+                        "total": sum([a[1] for a in asks[:i+1]]),
+                        "total_percent": (sum([a[1] for a in asks[:i+1]]) / total_ask_volume * 100) if total_ask_volume > 0 else 0
+                    }
+                    for i, ask in enumerate(asks)
+                ],
+                "timestamp": orderbook.get('timestamp', int(datetime.now().timestamp() * 1000))
+            }
         except Exception as e:
-            logger.error(f"获取深度数据失败: {e}")
+            logger.error(f"获取订单簿失败 [{symbol}]: {e}")
             raise
 
-    async def get_balance(self) -> Dict:
+    async def get_ohlcv(self, symbol: str, timeframe: str = '1h', limit: int = 100) -> List[List]:
         """
-        获取账户余额
+        获取K线数据
+
+        Args:
+            symbol: 交易对
+            timeframe: 时间周期 (1m, 5m, 15m, 1h, 4h, 1d)
+            limit: K线数量
 
         Returns:
-            余额信息
+            K线数据列表 [[timestamp, open, high, low, close, volume], ...]
         """
         try:
-            result = await asyncio.to_thread(
-                self.exchange.fetch_balance
-            )
-            return result
+            ohlcv = await asyncio.to_thread(self.exchange.fetch_ohlcv, symbol, timeframe, limit=limit)
+            return ohlcv
         except Exception as e:
-            logger.error(f"获取账户余额失败: {e}")
+            logger.error(f"获取K线数据失败 [{symbol}, {timeframe}]: {e}")
             raise
 
-    async def get_trades(self, symbol: str = None, limit: int = 100) -> List[Dict]:
+    async def get_trades(self, symbol: str, limit: int = 50) -> List[Dict]:
         """
         获取成交记录
 
         Args:
-            symbol: 交易对（可选）
-            limit: 数量限制
+            symbol: 交易对
+            limit: 成交记录数量
 
         Returns:
             成交记录列表
         """
         try:
-            result = await asyncio.to_thread(
-                self.exchange.fetch_my_trades,
-                symbol,
-                limit=limit
-            )
-            return result
+            trades = await asyncio.to_thread(self.exchange.fetch_trades, symbol, limit=limit)
+
+            formatted_trades = []
+            for trade in trades:
+                formatted_trades.append({
+                    "id": str(trade.get('id')),
+                    "timestamp": trade.get('timestamp'),
+                    "datetime": trade.get('datetime'),
+                    "symbol": symbol,
+                    "order": trade.get('order'),
+                    "type": trade.get('type'),
+                    "side": trade.get('side'),
+                    "price": trade.get('price'),
+                    "amount": trade.get('amount'),
+                    "cost": trade.get('cost'),
+                    "fee": trade.get('fee')
+                })
+
+            return formatted_trades
         except Exception as e:
-            logger.error(f"获取成交记录失败: {e}")
+            logger.error(f"获取成交记录失败 [{symbol}]: {e}")
             raise
 
-    async def get_current_price(self, symbol: str) -> float:
+    async def get_pairs(self) -> List[Dict]:
         """
-        获取当前价格
+        获取支持的交易对列表
+
+        Returns:
+            交易对列表
+        """
+        try:
+            markets = await asyncio.to_thread(lambda: self.exchange.markets)
+
+            # 只返回现货交易对
+            pairs = []
+            for symbol, market in markets.items():
+                if market.get('type') == 'spot' and market.get('active', True):
+                    pairs.append({
+                        "symbol": symbol,
+                        "name": market.get('name'),
+                        "base": market.get('base'),
+                        "quote": market.get('quote')
+                    })
+
+            # 限制返回数量，避免数据过大
+            return pairs[:50]
+        except Exception as e:
+            logger.error(f"获取交易对列表失败: {e}")
+            raise
+
+    async def get_24h_stats(self, symbol: str) -> Dict[str, Any]:
+        """
+        获取24小时统计数据
 
         Args:
             symbol: 交易对
 
         Returns:
-            当前价格
+            24小时统计数据
         """
         try:
             ticker = await self.get_ticker(symbol)
-            return float(ticker['last'])
+
+            return {
+                "symbol": symbol,
+                "open": ticker.get('last') - ticker.get('change', 0),
+                "high": ticker.get('high'),
+                "low": ticker.get('low'),
+                "close": ticker.get('last'),
+                "volume": ticker.get('volume'),
+                "quoteVolume": ticker.get('quoteVolume'),
+                "change": ticker.get('change'),
+                "changePercent": ticker.get('percentage'),
+                "timestamp": ticker.get('timestamp')
+            }
         except Exception as e:
-            logger.error(f"获取当前价格失败: {e}")
+            logger.error(f"获取24小时统计数据失败 [{symbol}]: {e}")
             raise
 
-    async def create_oco_order(
-        self,
-        symbol: str,
-        side: Literal['buy', 'sell'],
-        amount: float,
-        price: float,
-        stop_loss_price: float,
-        take_profit_price: float,
-        params: Dict = None
-    ) -> Dict:
+    async def test_connection(self) -> Dict[str, Any]:
         """
-        创建OCO订单（止盈止损同时设置）
-
-        Args:
-            symbol: 交易对
-            side: 买卖方向
-            amount: 数量
-            price: 价格
-            stop_loss_price: 止损价格
-            take_profit_price: 止盈价格
-            params: 额外参数
+        测试交易所连接
 
         Returns:
-            订单信息
-        """
-        params = params or {}
-
-        try:
-            # OCO订单参数
-            params.update({
-                'stopLoss': {'price': stop_loss_price},
-                'takeProfit': {'price': take_profit_price}
-            })
-
-            result = await asyncio.to_thread(
-                self.exchange.create_order,
-                symbol,
-                'limit',
-                side,
-                amount,
-                price,
-                params
-            )
-
-            logger.info(f"OCO下单成功: {result['id']}")
-            return result
-
-        except Exception as e:
-            logger.error(f"OCO下单失败: {e}")
-            raise
-
-    def stop(self):
-        """停止交易所连接"""
-        try:
-            if hasattr(self.exchange, 'close'):
-                self.exchange.close()
-            logger.info("交易所连接已关闭")
-        except Exception as e:
-            logger.error(f"关闭交易所连接失败: {e}")
-
-    async def get_order(self, order_id: str, symbol: str) -> Dict:
-        """
-        查询订单
-
-        Args:
-            order_id: 订单ID
-            symbol: 交易对
-
-        Returns:
-            订单信息
+            连接状态信息
         """
         try:
-            result = await asyncio.to_thread(
-                self.exchange.fetch_order,
-                order_id,
-                symbol
-            )
-            return result
+            # 尝试获取交易对列表
+            markets = await asyncio.to_thread(lambda: self.exchange.markets)
+
+            return {
+                "success": True,
+                "exchange": self.exchange_id,
+                "has_markets": len(markets) > 0,
+                "market_count": len(markets),
+                "message": "连接成功"
+            }
         except Exception as e:
-            logger.error(f"查询订单失败: {e}")
-            raise
+            logger.error(f"测试连接失败: {e}")
+            return {
+                "success": False,
+                "exchange": self.exchange_id,
+                "error": str(e),
+                "message": "连接失败"
+            }
 
-    async def get_open_orders(self, symbol: str = None) -> List[Dict]:
-        """
-        查询所有未完成订单
 
-        Args:
-            symbol: 交易对（可选，不指定则查询所有）
+# 全局实例
+_exchange_api: Optional[ExchangeAPI] = None
 
-        Returns:
-            订单列表
-        """
-        try:
-            result = await asyncio.to_thread(
-                self.exchange.fetch_open_orders,
-                symbol
-            )
-            return result
-        except Exception as e:
-            logger.error(f"查询未完成订单失败: {e}")
-            raise
 
-    async def get_balance(self) -> Dict:
-        """
-        查询账户余额
+def get_exchange_api() -> ExchangeAPI:
+    """
+    获取全局交易所API实例
 
-        Returns:
-            余额信息
-        """
-        try:
-            result = await asyncio.to_thread(self.exchange.fetch_balance)
-            return result
-        except Exception as e:
-            logger.error(f"查询余额失败: {e}")
-            raise
-
-    async def get_ticker(self, symbol: str) -> Dict:
-        """
-        查询行情
-
-        Args:
-            symbol: 交易对
-
-        Returns:
-            行情信息
-        """
-        try:
-            result = await asyncio.to_thread(
-                self.exchange.fetch_ticker,
-                symbol
-            )
-            return result
-        except Exception as e:
-            logger.error(f"查询行情失败: {e}")
-            raise
-
-    async def get_order_book(self, symbol: str, limit: int = 20) -> Dict:
-        """
-        查询深度数据
-
-        Args:
-            symbol: 交易对
-            limit: 深度档位
-
-        Returns:
-            深度数据
-        """
-        try:
-            result = await asyncio.to_thread(
-                self.exchange.fetch_order_book,
-                symbol,
-                limit
-            )
-            return result
-        except Exception as e:
-            logger.error(f"查询深度数据失败: {e}")
-            raise
-
-    async def get_ohlcv(
-        self,
-        symbol: str,
-        timeframe: str = '1h',
-        limit: int = 100,
-        since: int = None
-    ) -> List[List]:
-        """
-        查询K线数据
-
-        Args:
-            symbol: 交易对
-            timeframe: 时间周期（1m, 5m, 15m, 1h, 4h, 1d等）
-            limit: 数量限制
-            since: 起始时间戳
-
-        Returns:
-            K线数据 [[timestamp, open, high, low, close, volume], ...]
-        """
-        try:
-            result = await asyncio.to_thread(
-                self.exchange.fetch_ohlcv,
-                symbol,
-                timeframe,
-                since,
-                limit
-            )
-            return result
-        except Exception as e:
-            logger.error(f"查询K线数据失败: {e}")
-            raise
-
-    async def get_trades(
-        self,
-        symbol: str,
-        limit: int = 100,
-        since: int = None
-    ) -> List[Dict]:
-        """
-        查询交易历史
-
-        Args:
-            symbol: 交易对
-            limit: 数量限制
-            since: 起始时间戳
-
-        Returns:
-            交易记录列表
-        """
-        try:
-            result = await asyncio.to_thread(
-                self.exchange.fetch_my_trades,
-                symbol,
-                since,
-                limit
-            )
-            return result
-        except Exception as e:
-            logger.error(f"查询交易历史失败: {e}")
-            raise
-
-    async def test_connection(self) -> bool:
-        """
-        测试连接
-
-        Returns:
-            是否连接成功
-        """
-        try:
-            await asyncio.to_thread(self.exchange.fetch_time)
-            logger.info("交易所连接测试成功")
-            return True
-        except Exception as e:
-            logger.error(f"交易所连接测试失败: {e}")
-            return False
-
-    def close(self):
-        """关闭连接"""
-        if hasattr(self.exchange, 'close'):
-            self.exchange.close()
-        logger.info("交易所连接已关闭")
+    Returns:
+        ExchangeAPI实例
+    """
+    global _exchange_api
+    if _exchange_api is None:
+        _exchange_api = ExchangeAPI()
+    return _exchange_api
