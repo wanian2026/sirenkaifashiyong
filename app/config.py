@@ -18,6 +18,14 @@ class Settings(BaseSettings):
     INVESTMENT_AMOUNT: float = 1000
     LOG_LEVEL: str = "INFO"
 
+    # Redis配置
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    REDIS_PASSWORD: str = ""
+    REDIS_ENABLED: bool = False
+    CACHE_TTL_DEFAULT: int = 60  # 默认缓存时间（秒）
+
     class Config:
         env_file = ".env"
         case_sensitive = True

@@ -1,6 +1,7 @@
 """
 交易所API管理模块
 基于CCXT库提供统一的交易所数据访问接口
+支持Redis缓存优化
 """
 
 import ccxt
@@ -9,6 +10,7 @@ from typing import Dict, List, Optional, Any
 import logging
 from datetime import datetime, timedelta
 from app.config import settings
+from app.cache import get_cache
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +114,7 @@ class ExchangeAPI:
 
     async def get_ticker(self, symbol: str) -> Dict[str, Any]:
         """
-        获取行情信息
+        获取行情信息（带缓存）
 
         Args:
             symbol: 交易对 (如 BTC/USDT)
@@ -120,10 +122,19 @@ class ExchangeAPI:
         Returns:
             行情数据字典
         """
+        cache = get_cache()
+        cache_key = f"ticker:{symbol}"
+
+        # 尝试从缓存获取
+        cached_data = await cache.get(cache_key)
+        if cached_data:
+            logger.debug(f"命中缓存: {cache_key}")
+            return cached_data
+
         try:
             ticker = await asyncio.to_thread(self.exchange.fetch_ticker, symbol)
 
-            return {
+            result = {
                 "symbol": symbol,
                 "last": ticker.get('last'),
                 "high": ticker.get('high'),
@@ -136,13 +147,19 @@ class ExchangeAPI:
                 "percentage": ticker.get('percentage'),
                 "timestamp": ticker.get('timestamp')
             }
+
+            # 存入缓存（5秒）
+            await cache.set(cache_key, result, ttl=5)
+            logger.debug(f"存入缓存: {cache_key}")
+
+            return result
         except Exception as e:
             logger.error(f"获取行情失败 [{symbol}]: {e}")
             raise
 
     async def get_orderbook(self, symbol: str, limit: int = 20) -> Dict[str, Any]:
         """
-        获取订单簿深度数据
+        获取订单簿深度数据（带缓存）
 
         Args:
             symbol: 交易对
@@ -151,6 +168,15 @@ class ExchangeAPI:
         Returns:
             订单簿数据
         """
+        cache = get_cache()
+        cache_key = f"orderbook:{symbol}:{limit}"
+
+        # 尝试从缓存获取（缓存时间2秒）
+        cached_data = await cache.get(cache_key)
+        if cached_data:
+            logger.debug(f"命中缓存: {cache_key}")
+            return cached_data
+
         try:
             orderbook = await asyncio.to_thread(self.exchange.fetch_order_book, symbol, limit)
 
@@ -161,7 +187,7 @@ class ExchangeAPI:
             total_bid_volume = sum([bid[1] for bid in bids])
             total_ask_volume = sum([ask[1] for ask in asks])
 
-            return {
+            result = {
                 "symbol": symbol,
                 "bids": [
                     {
@@ -183,13 +209,19 @@ class ExchangeAPI:
                 ],
                 "timestamp": orderbook.get('timestamp', int(datetime.now().timestamp() * 1000))
             }
+
+            # 存入缓存（2秒）
+            await cache.set(cache_key, result, ttl=2)
+            logger.debug(f"存入缓存: {cache_key}")
+
+            return result
         except Exception as e:
             logger.error(f"获取订单簿失败 [{symbol}]: {e}")
             raise
 
     async def get_ohlcv(self, symbol: str, timeframe: str = '1h', limit: int = 100) -> List[List]:
         """
-        获取K线数据
+        获取K线数据（带缓存）
 
         Args:
             symbol: 交易对
@@ -199,8 +231,33 @@ class ExchangeAPI:
         Returns:
             K线数据列表 [[timestamp, open, high, low, close, volume], ...]
         """
+        cache = get_cache()
+        cache_key = f"ohlcv:{symbol}:{timeframe}:{limit}"
+
+        # 根据时间周期决定缓存时间
+        timeframe_ttl = {
+            '1m': 10,
+            '5m': 30,
+            '15m': 60,
+            '1h': 120,
+            '4h': 300,
+            '1d': 600
+        }
+        ttl = timeframe_ttl.get(timeframe, 60)
+
+        # 尝试从缓存获取
+        cached_data = await cache.get(cache_key)
+        if cached_data:
+            logger.debug(f"命中缓存: {cache_key}")
+            return cached_data
+
         try:
             ohlcv = await asyncio.to_thread(self.exchange.fetch_ohlcv, symbol, timeframe, limit=limit)
+
+            # 存入缓存
+            await cache.set(cache_key, ohlcv, ttl=ttl)
+            logger.debug(f"存入缓存: {cache_key}")
+
             return ohlcv
         except Exception as e:
             logger.error(f"获取K线数据失败 [{symbol}, {timeframe}]: {e}")
@@ -243,11 +300,20 @@ class ExchangeAPI:
 
     async def get_pairs(self) -> List[Dict]:
         """
-        获取支持的交易对列表
+        获取支持的交易对列表（带缓存）
 
         Returns:
             交易对列表
         """
+        cache = get_cache()
+        cache_key = f"pairs:{self.exchange_id}"
+
+        # 尝试从缓存获取（缓存10分钟）
+        cached_data = await cache.get(cache_key)
+        if cached_data:
+            logger.debug(f"命中缓存: {cache_key}")
+            return cached_data
+
         try:
             markets = await asyncio.to_thread(lambda: self.exchange.markets)
 
@@ -263,7 +329,13 @@ class ExchangeAPI:
                     })
 
             # 限制返回数量，避免数据过大
-            return pairs[:50]
+            result = pairs[:50]
+
+            # 存入缓存（10分钟）
+            await cache.set(cache_key, result, ttl=600)
+            logger.debug(f"存入缓存: {cache_key}")
+
+            return result
         except Exception as e:
             logger.error(f"获取交易对列表失败: {e}")
             raise

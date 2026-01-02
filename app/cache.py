@@ -3,7 +3,7 @@
 支持Redis缓存和内存缓存
 """
 
-from typing import Optional, Any, List
+from typing import Optional, Any, List, Callable
 from datetime import timedelta
 import json
 import logging
@@ -196,6 +196,100 @@ class CacheManager:
             keys = await self.backend.keys(full_pattern)
             for key in keys:
                 await self.backend.delete(key)
+
+
+# 全局缓存管理器
+_global_cache: Optional[CacheManager] = None
+
+
+def init_cache(redis_enabled: bool = False, **redis_config):
+    """
+    初始化全局缓存管理器
+
+    Args:
+        redis_enabled: 是否使用Redis
+        **redis_config: Redis配置参数
+    """
+    global _global_cache
+
+    if redis_enabled:
+        backend = RedisCache(**redis_config)
+        logger.info("使用Redis缓存")
+    else:
+        backend = MemoryCache()
+        logger.info("使用内存缓存")
+
+    _global_cache = CacheManager(backend)
+
+
+def get_cache() -> CacheManager:
+    """获取全局缓存管理器"""
+    if _global_cache is None:
+        # 默认使用内存缓存
+        init_cache(redis_enabled=False)
+    return _global_cache
+
+
+def cached(ttl: int = None, key_prefix: str = None):
+    """
+    缓存装饰器
+
+    Args:
+        ttl: 缓存过期时间（秒）
+        key_prefix: 缓存键前缀
+
+    Usage:
+        @cached(ttl=60, key_prefix="ticker")
+        async def get_ticker(symbol: str):
+            ...
+    """
+    def decorator(func: Callable):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            cache = get_cache()
+
+            # 生成缓存键
+            if key_prefix:
+                cache_key = f"{key_prefix}:{args}:{kwargs}"
+            else:
+                cache_key = f"{func.__name__}:{args}:{kwargs}"
+
+            # 尝试从缓存获取
+            value = await cache.get(cache_key)
+
+            if value is not None:
+                logger.debug(f"缓存命中: {cache_key}")
+                return value
+
+            # 缓存未命中，调用函数
+            logger.debug(f"缓存未命中: {cache_key}")
+            result = await func(*args, **kwargs)
+
+            # 存入缓存
+            await cache.set(cache_key, result, ttl)
+
+            return result
+
+        return wrapper
+    return decorator
+
+
+async def clear_cache(pattern: str = None):
+    """
+    清空缓存
+
+    Args:
+        pattern: 匹配模式（可选），如果为None则清空所有缓存
+    """
+    cache = get_cache()
+
+    if pattern:
+        await cache.delete_pattern(pattern)
+        logger.info(f"清空缓存: {pattern}")
+    else:
+        await cache.clear()
+        logger.info("清空所有缓存")
+
 
 
 def cached(ttl: int = 300, key_prefix: str = ""):
