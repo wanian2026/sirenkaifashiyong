@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统设置 - 加密货币交易系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=stylesheet" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <button onclick="goBack()" class="mr-4 p-2 hover:bg-gray-100 rounded-lg">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                    </button>
+                    <h1 class="text-2xl font-bold text-gray-800">系统设置</h1>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="space-y-6">
+            <!-- 用户信息 -->
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b bg-gray-50">
+                    <h2 class="text-lg font-semibold">用户信息</h2>
+                </div>
+                <div class="p-6">
+                    <form id="userInfoForm" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                                <input type="text" id="username" readonly class="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-50">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+                                <input type="email" id="email" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                            </div>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="button" onclick="updateUserInfo()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">
+                                保存更改
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 修改密码 -->
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b bg-gray-50">
+                    <h2 class="text-lg font-semibold">修改密码</h2>
+                </div>
+                <div class="p-6">
+                    <form id="passwordForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">当前密码</label>
+                            <input type="password" id="currentPassword" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">新密码</label>
+                            <input type="password" id="newPassword" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">确认新密码</label>
+                            <input type="password" id="confirmPassword" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="button" onclick="changePassword()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">
+                                修改密码
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 交易所API配置 -->
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b bg-gray-50">
+                    <h2 class="text-lg font-semibold">交易所API配置</h2>
+                </div>
+                <div class="p-6">
+                    <form id="apiForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">交易所</label>
+                            <select id="exchangeSelect" onchange="loadExchangeConfig()" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                                <option value="binance">Binance</option>
+                                <option value="okx">OKX</option>
+                                <option value="huobi">Huobi</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+                            <input type="text" id="apiKey" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">API Secret</label>
+                            <input type="password" id="apiSecret" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <button type="button" onclick="saveExchangeConfig()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">
+                                保存配置
+                            </button>
+                            <button type="button" onclick="testExchangeConnection()" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700">
+                                测试连接
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 通知设置 -->
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b bg-gray-50">
+                    <h2 class="text-lg font-semibold">通知设置</h2>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="font-medium">邮件通知</p>
+                            <p class="text-sm text-gray-600">通过邮件接收交易通知</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="emailNotification" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="font-medium">钉钉通知</p>
+                            <p class="text-sm text-gray-600">通过钉钉接收交易通知</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="dingtalkNotification" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="font-medium">飞书通知</p>
+                            <p class="text-sm text-gray-600">通过飞书接收交易通知</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="feishuNotification" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+
+                    <div class="pt-4 border-t">
+                        <button onclick="saveNotificationSettings()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">
+                            保存设置
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 系统信息 -->
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b bg-gray-50">
+                    <h2 class="text-lg font-semibold">系统信息</h2>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div class="text-gray-600">系统版本:</div>
+                        <div class="font-medium">1.0.0</div>
+                        <div class="text-gray-600">最后更新:</div>
+                        <div class="font-medium">2025-01-02</div>
+                        <div class="text-gray-600">数据库:</div>
+                        <div class="font-medium">PostgreSQL</div>
+                        <div class="text-gray-600">缓存:</div>
+                        <div class="font-medium text-green-600">已启用</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+        let authToken = localStorage.getItem('token');
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!authToken) {
+                window.location.href = '/static/auth.html';
+                return;
+            }
+
+            loadUserInfo();
+        });
+
+        // 加载用户信息
+        async function loadUserInfo() {
+            try {
+                const response = await axios.get(`${API_BASE}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const user = response.data;
+
+                document.getElementById('username').value = user.username;
+                document.getElementById('email').value = user.email || '';
+            } catch (error) {
+                console.error('Load user info error:', error);
+            }
+        }
+
+        // 更新用户信息
+        async function updateUserInfo() {
+            const email = document.getElementById('email').value;
+
+            try {
+                await axios.put(`${API_BASE}/auth/me`, {
+                    email
+                }, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                alert('用户信息更新成功');
+            } catch (error) {
+                console.error('Update user info error:', error);
+                alert('更新失败');
+            }
+        }
+
+        // 修改密码
+        async function changePassword() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (newPassword !== confirmPassword) {
+                alert('两次输入的密码不一致');
+                return;
+            }
+
+            if (newPassword.length < 8) {
+                alert('密码至少需要8位');
+                return;
+            }
+
+            try {
+                await axios.post(`${API_BASE}/auth/change-password`, {
+                    old_password: currentPassword,
+                    new_password: newPassword
+                }, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                alert('密码修改成功，请重新登录');
+                document.getElementById('passwordForm').reset();
+            } catch (error) {
+                console.error('Change password error:', error);
+                alert('修改失败');
+            }
+        }
+
+        // 加载交易所配置
+        function loadExchangeConfig() {
+            const exchange = document.getElementById('exchangeSelect').value;
+            // 从localStorage加载配置
+            const config = JSON.parse(localStorage.getItem(`exchange_${exchange}`) || '{}');
+
+            document.getElementById('apiKey').value = config.apiKey || '';
+            document.getElementById('apiSecret').value = config.apiSecret || '';
+        }
+
+        // 保存交易所配置
+        function saveExchangeConfig() {
+            const exchange = document.getElementById('exchangeSelect').value;
+            const apiKey = document.getElementById('apiKey').value;
+            const apiSecret = document.getElementById('apiSecret').value;
+
+            // 保存到localStorage（实际应用中应该加密并保存到服务器）
+            localStorage.setItem(`exchange_${exchange}`, JSON.stringify({ apiKey, apiSecret }));
+
+            alert('配置已保存');
+        }
+
+        // 测试交易所连接
+        function testExchangeConnection() {
+            const exchange = document.getElementById('exchangeSelect').value;
+            const apiKey = document.getElementById('apiKey').value;
+            const apiSecret = document.getElementById('apiSecret').value;
+
+            if (!apiKey || !apiSecret) {
+                alert('请先填写API Key和Secret');
+                return;
+            }
+
+            alert(`正在测试${exchange}连接...\n（此功能需要后端API支持）`);
+        }
+
+        // 保存通知设置
+        function saveNotificationSettings() {
+            const settings = {
+                email: document.getElementById('emailNotification').checked,
+                dingtalk: document.getElementById('dingtalkNotification').checked,
+                feishu: document.getElementById('feishuNotification').checked
+            };
+
+            localStorage.setItem('notificationSettings', JSON.stringify(settings));
+            alert('通知设置已保存');
+        }
+
+        // 返回
+        function goBack() {
+            window.location.href = '/static/main-dashboard.html';
+        }
+    </script>
+</body>
+</html>

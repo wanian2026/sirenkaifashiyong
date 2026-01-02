@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>仪表盘 - 加密货币交易系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=stylesheet" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: #f8fafc;
+        }
+
+        .sidebar {
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .nav-item {
+            transition: all 0.3s ease;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-item.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-left: 3px solid white;
+        }
+
+        .stat-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .trend-up {
+            color: #10b981;
+        }
+
+        .trend-down {
+            color: #ef4444;
+        }
+
+        .price-up {
+            animation: priceUp 0.5s ease;
+        }
+
+        .price-down {
+            animation: priceDown 0.5s ease;
+        }
+
+        @keyframes priceUp {
+            0% { color: #10b981; }
+            100% { color: #10b981; }
+        }
+
+        @keyframes priceDown {
+            0% { color: #ef4444; }
+            100% { color: #ef4444; }
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .bot-card {
+            transition: all 0.3s ease;
+        }
+
+        .bot-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-running {
+            background-color: #10b981;
+        }
+
+        .status-stopped {
+            background-color: #6b7280;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .notification {
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="flex">
+        <!-- Sidebar -->
+        <div class="sidebar w-64 min-h-screen fixed left-0 top-0 text-white hidden md:block">
+            <div class="p-6">
+                <h1 class="text-xl font-bold flex items-center">
+                    <svg class="w-8 h-8 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                    </svg>
+                    交易系统
+                </h1>
+            </div>
+
+            <nav class="mt-6">
+                <a href="#" onclick="showPage('dashboard')" id="nav-dashboard" class="nav-item active flex items-center px-6 py-3">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                    </svg>
+                    仪表盘
+                </a>
+                <a href="#" onclick="showPage('bots')" id="nav-bots" class="nav-item flex items-center px-6 py-3">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                    </svg>
+                    机器人管理
+                </a>
+                <a href="#" onclick="showPage('trading')" id="nav-trading" class="nav-item flex items-center px-6 py-3">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+                    </svg>
+                    实时交易
+                </a>
+                <a href="#" onclick="showPage('analytics')" id="nav-analytics" class="nav-item flex items-center px-6 py-3">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    数据分析
+                </a>
+                <a href="#" onclick="showPage('settings')" id="nav-settings" class="nav-item flex items-center px-6 py-3">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    系统设置
+                </a>
+            </nav>
+
+            <div class="absolute bottom-0 left-0 right-0 p-6">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="font-medium" id="currentUsername">用户</p>
+                        <p class="text-sm opacity-75">在线</p>
+                    </div>
+                    <button onclick="logout()" class="ml-auto p-2 hover:bg-white/10 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 md:ml-64">
+            <!-- Top Bar -->
+            <div class="bg-white shadow-sm border-b px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold text-gray-800" id="pageTitle">仪表盘</h2>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <span class="text-sm text-gray-600" id="currentTime"></span>
+                        </div>
+                        <div class="w-px h-6 bg-gray-200"></div>
+                        <button onclick="refreshData()" class="p-2 hover:bg-gray-100 rounded-lg">
+                            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div id="dashboardPage" class="p-6">
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="stat-card bg-white rounded-xl p-6 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">总资产</p>
+                                <p class="text-2xl font-bold text-gray-800 mt-1" id="totalAssets">$0.00</p>
+                                <p class="text-sm trend-up mt-2">↑ <span id="assetChange">0.00</span>%</p>
+                            </div>
+                            <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-white rounded-xl p-6 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">今日盈亏</p>
+                                <p class="text-2xl font-bold text-gray-800 mt-1" id="dailyPnl">$0.00</p>
+                                <p class="text-sm mt-2" id="dailyPnlTrend">↑ 0.00%</p>
+                            </div>
+                            <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-white rounded-xl p-6 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">运行机器人</p>
+                                <p class="text-2xl font-bold text-gray-800 mt-1" id="runningBots">0</p>
+                                <p class="text-sm text-gray-600 mt-2">总计 <span id="totalBots">0</span></p>
+                            </div>
+                            <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-white rounded-xl p-6 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">总交易次数</p>
+                                <p class="text-2xl font-bold text-gray-800 mt-1" id="totalTrades">0</p>
+                                <p class="text-sm text-gray-600 mt-2">胜率 <span id="winRate">0</span>%</p>
+                            </div>
+                            <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white rounded-xl p-6 shadow-sm">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">盈亏趋势</h3>
+                        <div class="chart-container">
+                            <canvas id="pnlChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl p-6 shadow-sm">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">交易统计</h3>
+                        <div class="chart-container">
+                            <canvas id="tradesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Bots & Trades -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-xl p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800">最近机器人</h3>
+                            <a href="#" onclick="showPage('bots')" class="text-sm text-indigo-600 hover:text-indigo-800">查看全部</a>
+                        </div>
+                        <div id="recentBotsList" class="space-y-3">
+                            <p class="text-gray-500 text-center py-4">暂无机器人</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800">最近交易</h3>
+                            <a href="#" onclick="showPage('trading')" class="text-sm text-indigo-600 hover:text-indigo-800">查看全部</a>
+                        </div>
+                        <div id="recentTradesList" class="space-y-3">
+                            <p class="text-gray-500 text-center py-4">暂无交易记录</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Other Pages Placeholders -->
+            <div id="botsPage" class="p-6 hidden">
+                <div class="text-center py-12">
+                    <p class="text-gray-500">机器人管理页面 - 即将完成</p>
+                    <p class="text-sm text-gray-400 mt-2">机器人列表、创建、编辑、监控</p>
+                </div>
+            </div>
+
+            <div id="tradingPage" class="p-6 hidden">
+                <div class="text-center py-12">
+                    <p class="text-gray-500">实时交易页面 - 即将完成</p>
+                    <p class="text-sm text-gray-400 mt-2">K线图、深度图、订单簿</p>
+                </div>
+            </div>
+
+            <div id="analyticsPage" class="p-6 hidden">
+                <div class="text-center py-12">
+                    <p class="text-gray-500">数据分析页面 - 即将完成</p>
+                    <p class="text-sm text-gray-400 mt-2">策略回测、性能分析</p>
+                </div>
+            </div>
+
+            <div id="settingsPage" class="p-6 hidden">
+                <div class="text-center py-12">
+                    <p class="text-gray-500">系统设置页面 - 即将完成</p>
+                    <p class="text-sm text-gray-400 mt-2">用户设置、API配置</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+        let authToken = localStorage.getItem('token');
+        let ws = null;
+        let pnlChart = null;
+        let tradesChart = null;
+        let previousPrice = 0;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!authToken) {
+                window.location.href = '/static/auth.html';
+                return;
+            }
+
+            loadUserInfo();
+            loadDashboardData();
+            initCharts();
+            connectWebSocket();
+            updateTime();
+            setInterval(updateTime, 1000);
+        });
+
+        // 更新时间
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleString('zh-CN');
+        }
+
+        // 加载用户信息
+        async function loadUserInfo() {
+            try {
+                const response = await axios.get(`${API_BASE}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                document.getElementById('currentUsername').textContent = response.data.username;
+            } catch (error) {
+                console.error('Load user info error:', error);
+            }
+        }
+
+        // 加载仪表盘数据
+        async function loadDashboardData() {
+            try {
+                // 加载统计数据
+                const statsResponse = await axios.get(`${API_BASE}/trades/stats`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const stats = statsResponse.data;
+
+                document.getElementById('totalTrades').textContent = stats.total_trades || 0;
+                document.getElementById('totalAssets').textContent = '$' + (stats.total_profit || 0).toFixed(2);
+                document.getElementById('winRate').textContent = stats.win_rate || 0;
+
+                // 加载机器人
+                loadRecentBots();
+
+                // 加载交易记录
+                loadRecentTrades();
+            } catch (error) {
+                console.error('Load dashboard data error:', error);
+            }
+        }
+
+        // 加载最近机器人
+        async function loadRecentBots() {
+            try {
+                const response = await axios.get(`${API_BASE}/bots`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const bots = response.data;
+
+                const botsList = document.getElementById('recentBotsList');
+                botsList.innerHTML = '';
+
+                let runningCount = 0;
+                bots.slice(0, 5).forEach(bot => {
+                    if (bot.status === 'running') runningCount++;
+
+                    const botItem = document.createElement('div');
+                    botItem.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+                    botItem.innerHTML = `
+                        <div class="flex items-center">
+                            <div class="w-2 h-2 rounded-full ${bot.status === 'running' ? 'bg-green-500' : 'bg-gray-400'} mr-3"></div>
+                            <div>
+                                <p class="font-medium text-gray-800">${bot.name}</p>
+                                <p class="text-sm text-gray-600">${bot.trading_pair}</p>
+                            </div>
+                        </div>
+                        <span class="text-sm ${bot.status === 'running' ? 'text-green-600' : 'text-gray-500'}">
+                            ${bot.status === 'running' ? '运行中' : '已停止'}
+                        </span>
+                    `;
+                    botsList.appendChild(botItem);
+                });
+
+                document.getElementById('runningBots').textContent = runningCount;
+                document.getElementById('totalBots').textContent = bots.length;
+            } catch (error) {
+                console.error('Load recent bots error:', error);
+            }
+        }
+
+        // 加载最近交易
+        async function loadRecentTrades() {
+            try {
+                const response = await axios.get(`${API_BASE}/trades/recent`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const trades = response.data;
+
+                const tradesList = document.getElementById('recentTradesList');
+                tradesList.innerHTML = '';
+
+                trades.slice(0, 5).forEach(trade => {
+                    const profitClass = trade.profit >= 0 ? 'text-green-600' : 'text-red-600';
+                    const tradeItem = document.createElement('div');
+                    tradeItem.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+                    tradeItem.innerHTML = `
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-full ${trade.side === 'buy' ? 'bg-green-100' : 'bg-red-100'} flex items-center justify-center mr-3">
+                                <span class="text-sm ${trade.side === 'buy' ? 'text-green-600' : 'text-red-600'}">
+                                    ${trade.side === 'buy' ? '买' : '卖'}
+                                </span>
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-800">${trade.trading_pair}</p>
+                                <p class="text-sm text-gray-600">$${trade.price.toFixed(2)}</p>
+                            </div>
+                        </div>
+                        <span class="text-sm ${profitClass} font-medium">
+                            ${trade.profit >= 0 ? '+' : ''}$${trade.profit.toFixed(2)}
+                        </span>
+                    `;
+                    tradesList.appendChild(tradeItem);
+                });
+            } catch (error) {
+                console.error('Load recent trades error:', error);
+            }
+        }
+
+        // 初始化图表
+        function initCharts() {
+            // 盈亏趋势图
+            const pnlCtx = document.getElementById('pnlChart').getContext('2d');
+            pnlChart = new Chart(pnlCtx, {
+                type: 'line',
+                data: {
+                    labels: ['1月', '2月', '3月', '4月', '5月', '6月'],
+                    datasets: [{
+                        label: '盈亏 ($)',
+                        data: [1200, 1900, 1500, 2100, 1800, 2400],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // 交易统计图
+            const tradesCtx = document.getElementById('tradesChart').getContext('2d');
+            tradesChart = new Chart(tradesCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['1月', '2月', '3月', '4月', '5月', '6月'],
+                    datasets: [{
+                        label: '交易次数',
+                        data: [45, 52, 38, 65, 42, 58],
+                        backgroundColor: '#667eea',
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // WebSocket连接
+        function connectWebSocket() {
+            if (ws) {
+                ws.close();
+            }
+
+            ws = new WebSocket(`ws://localhost:8000/ws?token=${authToken}`);
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'market_data') {
+                    updateMarketPrice(data.data.price);
+                }
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket closed, reconnecting...');
+                setTimeout(connectWebSocket, 5000);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        // 更新市场价格
+        function updateMarketPrice(price) {
+            // 实时更新价格显示
+        }
+
+        // 显示页面
+        function showPage(page) {
+            // 隐藏所有页面
+            document.querySelectorAll('[id$="Page"]').forEach(el => {
+                el.classList.add('hidden');
+            });
+
+            // 移除所有导航激活状态
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('active');
+            });
+
+            // 显示选中的页面
+            document.getElementById(page + 'Page').classList.remove('hidden');
+
+            // 激活导航
+            document.getElementById('nav-' + page).classList.add('active');
+
+            // 更新标题
+            const titles = {
+                dashboard: '仪表盘',
+                bots: '机器人管理',
+                trading: '实时交易',
+                analytics: '数据分析',
+                settings: '系统设置'
+            };
+            document.getElementById('pageTitle').textContent = titles[page];
+        }
+
+        // 刷新数据
+        function refreshData() {
+            loadDashboardData();
+        }
+
+        // 退出登录
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                localStorage.removeItem('token');
+                if (ws) {
+                    ws.close();
+                }
+                window.location.href = '/static/auth.html';
+            }
+        }
+    </script>
+</body>
+</html>

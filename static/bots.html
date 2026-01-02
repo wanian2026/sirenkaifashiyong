@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>机器人管理 - 加密货币交易系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=stylesheet" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .bot-card {
+            transition: all 0.3s ease;
+        }
+
+        .bot-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-badge {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .modal {
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-content {
+            transition: transform 0.3s ease;
+        }
+
+        .input-field {
+            transition: border-color 0.2s ease;
+        }
+
+        .input-field:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .loading-overlay {
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            border: 3px solid rgba(102, 126, 234, 0.3);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <button onclick="goBack()" class="mr-4 p-2 hover:bg-gray-100 rounded-lg">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                    </button>
+                    <h1 class="text-2xl font-bold text-gray-800">机器人管理</h1>
+                </div>
+                <button onclick="showCreateModal()" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-shadow flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    创建机器人
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-xl p-6 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600">总机器人</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-2" id="totalBots">0</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-6 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600">运行中</p>
+                        <p class="text-3xl font-bold text-green-600 mt-2" id="runningBots">0</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-6 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600">已停止</p>
+                        <p class="text-3xl font-bold text-gray-400 mt-2" id="stoppedBots">0</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter -->
+        <div class="bg-white rounded-xl p-4 shadow-sm mb-6">
+            <div class="flex flex-wrap items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-600">状态:</label>
+                    <select id="filterStatus" onchange="filterBots()" class="input-field border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="all">全部</option>
+                        <option value="running">运行中</option>
+                        <option value="stopped">已停止</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-600">交易所:</label>
+                    <select id="filterExchange" onchange="filterBots()" class="input-field border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="all">全部</option>
+                        <option value="binance">Binance</option>
+                        <option value="okx">OKX</option>
+                        <option value="huobi">Huobi</option>
+                    </select>
+                </div>
+                <div class="flex-1"></div>
+                <input type="text" id="searchBot" placeholder="搜索机器人..." oninput="filterBots()" class="input-field border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1 max-w-xs">
+            </div>
+        </div>
+
+        <!-- Bots Grid -->
+        <div id="botsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Bot cards will be rendered here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-12">
+            <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+            </svg>
+            <h3 class="text-lg font-medium text-gray-600 mb-2">还没有机器人</h3>
+            <p class="text-gray-500 mb-4">创建您的第一个交易机器人开始自动化交易</p>
+            <button onclick="showCreateModal()" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-shadow">
+                创建机器人
+            </button>
+        </div>
+    </main>
+
+    <!-- Create/Edit Bot Modal -->
+    <div id="botModal" class="modal fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="modal-content bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b">
+                <h2 id="modalTitle" class="text-xl font-bold text-gray-800">创建机器人</h2>
+            </div>
+            <div class="p-6">
+                <form id="botForm" class="space-y-4">
+                    <input type="hidden" id="botId">
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">机器人名称</label>
+                            <input type="text" id="botName" required class="input-field w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="例如: BTC网格交易">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">交易所</label>
+                            <select id="exchange" required class="input-field w-full border border-gray-300 rounded-lg px-3 py-2">
+                                <option value="binance">Binance</option>
+                                <option value="okx">OKX</option>
+                                <option value="huobi">Huobi</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">交易对</label>
+                            <select id="tradingPair" required class="input-field w-full border border-gray-300 rounded-lg px-3 py-2">
+                                <option value="BTC/USDT">BTC/USDT</option>
+                                <option value="ETH/USDT">ETH/USDT</option>
+                                <option value="BNB/USDT">BNB/USDT</option>
+                                <option value="SOL/USDT">SOL/USDT</option>
+                                <option value="DOGE/USDT">DOGE/USDT</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">策略类型</label>
+                            <select id="strategy" required class="input-field w-full border border-gray-300 rounded-lg px-3 py-2">
+                                <option value="hedge_grid">对冲网格策略</option>
+                                <option value="martingale">马丁策略</option>
+                                <option value="mean_reversion">均值回归策略</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">投资金额 (USDT)</label>
+                            <input type="number" id="investment" required min="100" step="100" class="input-field w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="1000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">网格层数</label>
+                            <input type="number" id="gridLevels" required min="5" max="50" class="input-field w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="10">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">网格间距 (%)</label>
+                            <input type="number" id="gridSpacing" required min="0.5" max="10" step="0.1" class="input-field w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="2.0">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">止盈比例 (%)</label>
+                            <input type="number" id="takeProfit" min="0" max="100" step="0.5" class="input-field w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="10.0">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">止损比例 (%)</label>
+                        <input type="number" id="stopLoss" min="0" max="100" step="0.5" class="input-field w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="5.0">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">描述</label>
+                        <textarea id="description" rows="3" class="input-field w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="可选，添加机器人描述..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="p-6 border-t bg-gray-50 flex justify-end gap-3">
+                <button onclick="hideModal()" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+                    取消
+                </button>
+                <button onclick="saveBot()" class="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition-shadow">
+                    保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 loading-overlay flex items-center justify-center z-50 hidden">
+        <div class="text-center">
+            <div class="spinner w-12 h-12 mx-auto mb-4"></div>
+            <p class="text-gray-600">加载中...</p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+        let authToken = localStorage.getItem('token');
+        let bots = [];
+        let editingBotId = null;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!authToken) {
+                window.location.href = '/static/auth.html';
+                return;
+            }
+            loadBots();
+        });
+
+        // 加载机器人列表
+        async function loadBots() {
+            try {
+                showLoading();
+                const response = await axios.get(`${API_BASE}/bots`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                bots = response.data;
+                renderBots();
+                updateStats();
+            } catch (error) {
+                console.error('Load bots error:', error);
+                alert('加载机器人列表失败');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 渲染机器人列表
+        function renderBots() {
+            const botsGrid = document.getElementById('botsGrid');
+            const emptyState = document.getElementById('emptyState');
+
+            const filteredBots = filterBotsData();
+
+            if (filteredBots.length === 0) {
+                botsGrid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            botsGrid.innerHTML = filteredBots.map(bot => createBotCard(bot)).join('');
+        }
+
+        // 创建机器人卡片
+        function createBotCard(bot) {
+            const statusColor = bot.status === 'running' ? 'bg-green-500' : 'bg-gray-400';
+            const statusText = bot.status === 'running' ? '运行中' : '已停止';
+            const statusBadgeClass = bot.status === 'running' ? 'status-badge bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700';
+
+            return `
+                <div class="bot-card bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="p-6">
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 rounded-full ${statusColor} mr-2"></div>
+                                <h3 class="font-semibold text-gray-800">${bot.name}</h3>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-xs font-medium ${statusBadgeClass}">${statusText}</span>
+                        </div>
+
+                        <div class="space-y-2 text-sm text-gray-600 mb-4">
+                            <div class="flex justify-between">
+                                <span>交易所:</span>
+                                <span class="font-medium">${bot.exchange}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>交易对:</span>
+                                <span class="font-medium">${bot.trading_pair}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>策略:</span>
+                                <span class="font-medium">${getStrategyName(bot.strategy)}</span>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2">
+                            ${bot.status === 'running' ?
+                                `<button onclick="stopBot(${bot.id})" class="flex-1 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium">
+                                    停止
+                                </button>` :
+                                `<button onclick="startBot(${bot.id})" class="flex-1 px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium">
+                                    启动
+                                </button>`
+                            }
+                            <button onclick="viewBotDetail(${bot.id})" class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium">
+                                详情
+                            </button>
+                            <button onclick="editBot(${bot.id})" class="px-4 py-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium">
+                                编辑
+                            </button>
+                            <button onclick="deleteBot(${bot.id})" class="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium">
+                                删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 获取策略名称
+        function getStrategyName(strategy) {
+            const names = {
+                hedge_grid: '对冲网格',
+                martingale: '马丁策略',
+                mean_reversion: '均值回归'
+            };
+            return names[strategy] || strategy;
+        }
+
+        // 更新统计
+        function updateStats() {
+            const total = bots.length;
+            const running = bots.filter(b => b.status === 'running').length;
+            const stopped = bots.filter(b => b.status === 'stopped').length;
+
+            document.getElementById('totalBots').textContent = total;
+            document.getElementById('runningBots').textContent = running;
+            document.getElementById('stoppedBots').textContent = stopped;
+        }
+
+        // 过滤机器人
+        function filterBotsData() {
+            const statusFilter = document.getElementById('filterStatus').value;
+            const exchangeFilter = document.getElementById('filterExchange').value;
+            const searchTerm = document.getElementById('searchBot').value.toLowerCase();
+
+            return bots.filter(bot => {
+                if (statusFilter !== 'all' && bot.status !== statusFilter) return false;
+                if (exchangeFilter !== 'all' && bot.exchange !== exchangeFilter) return false;
+                if (searchTerm && !bot.name.toLowerCase().includes(searchTerm)) return false;
+                return true;
+            });
+        }
+
+        // 过滤机器人（事件处理）
+        function filterBots() {
+            renderBots();
+        }
+
+        // 显示创建机器人模态框
+        function showCreateModal() {
+            editingBotId = null;
+            document.getElementById('modalTitle').textContent = '创建机器人';
+            document.getElementById('botForm').reset();
+            document.getElementById('botId').value = '';
+            document.getElementById('botModal').classList.remove('hidden');
+        }
+
+        // 编辑机器人
+        function editBot(botId) {
+            const bot = bots.find(b => b.id === botId);
+            if (!bot) return;
+
+            editingBotId = botId;
+            document.getElementById('modalTitle').textContent = '编辑机器人';
+            document.getElementById('botId').value = bot.id;
+            document.getElementById('botName').value = bot.name;
+            document.getElementById('exchange').value = bot.exchange;
+            document.getElementById('tradingPair').value = bot.trading_pair;
+            document.getElementById('strategy').value = bot.strategy;
+
+            if (bot.config) {
+                document.getElementById('investment').value = bot.config.investment_amount || '';
+                document.getElementById('gridLevels').value = bot.config.grid_levels || '';
+                document.getElementById('gridSpacing').value = (bot.config.grid_spacing * 100) || '';
+                document.getElementById('takeProfit').value = bot.config.take_profit || '';
+                document.getElementById('stopLoss').value = bot.config.stop_loss || '';
+            }
+
+            document.getElementById('botModal').classList.remove('hidden');
+        }
+
+        // 保存机器人
+        async function saveBot() {
+            const formData = {
+                name: document.getElementById('botName').value,
+                exchange: document.getElementById('exchange').value,
+                trading_pair: document.getElementById('tradingPair').value,
+                strategy: document.getElementById('strategy').value,
+                config: {
+                    investment_amount: parseFloat(document.getElementById('investment').value),
+                    grid_levels: parseInt(document.getElementById('gridLevels').value),
+                    grid_spacing: parseFloat(document.getElementById('gridSpacing').value) / 100,
+                    take_profit: parseFloat(document.getElementById('takeProfit').value) || null,
+                    stop_loss: parseFloat(document.getElementById('stopLoss').value) || null
+                },
+                description: document.getElementById('description').value
+            };
+
+            try {
+                showLoading();
+
+                if (editingBotId) {
+                    await axios.put(`${API_BASE}/bots/${editingBotId}`, formData, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    });
+                    alert('机器人更新成功');
+                } else {
+                    await axios.post(`${API_BASE}/bots`, formData, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    });
+                    alert('机器人创建成功');
+                }
+
+                hideModal();
+                loadBots();
+            } catch (error) {
+                console.error('Save bot error:', error);
+                alert(editingBotId ? '更新失败' : '创建失败');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 隐藏模态框
+        function hideModal() {
+            document.getElementById('botModal').classList.add('hidden');
+        }
+
+        // 启动机器人
+        async function startBot(botId) {
+            try {
+                showLoading();
+                await axios.post(`${API_BASE}/bots/${botId}/start`, {}, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                alert('机器人已启动');
+                loadBots();
+            } catch (error) {
+                console.error('Start bot error:', error);
+                alert('启动失败');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 停止机器人
+        async function stopBot(botId) {
+            if (!confirm('确定要停止这个机器人吗？')) return;
+
+            try {
+                showLoading();
+                await axios.post(`${API_BASE}/bots/${botId}/stop`, {}, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                alert('机器人已停止');
+                loadBots();
+            } catch (error) {
+                console.error('Stop bot error:', error);
+                alert('停止失败');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 删除机器人
+        async function deleteBot(botId) {
+            if (!confirm('确定要删除这个机器人吗？此操作无法撤销。')) return;
+
+            try {
+                showLoading();
+                await axios.delete(`${API_BASE}/bots/${botId}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                alert('机器人已删除');
+                loadBots();
+            } catch (error) {
+                console.error('Delete bot error:', error);
+                alert('删除失败');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 查看机器人详情
+        async function viewBotDetail(botId) {
+            try {
+                const response = await axios.get(`${API_BASE}/bots/${botId}/status`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const status = response.data;
+
+                const detailInfo = `
+机器人详情:
+─────────────
+名称: ${status.name}
+状态: ${status.status === 'running' ? '运行中' : '已停止'}
+交易对: ${status.trading_pair}
+策略: ${status.strategy}
+
+当前价格: $${status.current_price?.toFixed(2) || 'N/A'}
+总投入: $${status.total_invested?.toFixed(2) || '0.00'}
+已实现利润: $${status.realized_profit?.toFixed(2) || '0.00'}
+未实现利润: $${status.unrealized_profit?.toFixed(2) || '0.00'}
+
+挂单数: ${status.pending_orders || 0}
+已成交订单: ${status.filled_orders || 0}
+总交易次数: ${status.total_trades || 0}
+                `;
+
+                alert(detailInfo);
+            } catch (error) {
+                console.error('View bot detail error:', error);
+                alert('获取机器人详情失败');
+            }
+        }
+
+        // 显示加载
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+
+        // 隐藏加载
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        // 返回
+        function goBack() {
+            window.location.href = '/static/main-dashboard.html';
+        }
+    </script>
+</body>
+</html>

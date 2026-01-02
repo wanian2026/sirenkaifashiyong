@@ -59,6 +59,24 @@ async def health_check():
     return {"status": "healthy"}
 
 
+@app.get("/api/system/info")
+async def system_info():
+    """系统信息"""
+    return {
+        "system": "加密货币交易系统",
+        "version": "1.0.0",
+        "status": "running",
+        "features": [
+            "对冲网格策略",
+            "回测引擎",
+            "马丁策略",
+            "均值回归策略",
+            "通知系统",
+            "RBAC权限管理"
+        ]
+    }
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket端点"""
