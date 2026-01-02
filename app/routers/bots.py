@@ -10,6 +10,7 @@ from app.schemas import (
 )
 from app.strategies import HedgeGridStrategy
 from app.risk_management import RiskManager
+from app.cache import CacheManager, CacheKey
 import json
 import logging
 
@@ -17,9 +18,14 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# 缓存TTL设置（秒）
+CACHE_TTL_BOTS = 30  # 机器人列表缓存30秒
+CACHE_TTL_BOT_DETAIL = 60  # 机器人详情缓存60秒
+
 # 存储运行中的机器人实例和风险管理器
 running_bots = {}
 bot_risk_managers = {}
+cache_manager = CacheManager()
 
 
 @router.post("/", response_model=BotResponse, status_code=status.HTTP_201_CREATED)
@@ -51,8 +57,30 @@ async def get_bots(
     db: Session = Depends(get_db)
 ):
     """获取当前用户的所有机器人"""
-    bots = db.query(TradingBot).filter(TradingBot.user_id == current_user.id).all()
-    return bots
+    try:
+        # 生成缓存键
+        cache_key = CacheKey.user(current_user.id) + ":bots"
+
+        # 尝试从缓存获取
+        cached_data = await cache_manager.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"机器人列表缓存命中: user_id={current_user.id}")
+            return cached_data
+
+        # 缓存未命中，查询数据库
+        bots = db.query(TradingBot).filter(TradingBot.user_id == current_user.id).all()
+
+        # 存入缓存
+        await cache_manager.set(cache_key, bots, CACHE_TTL_BOTS)
+        logger.debug(f"机器人列表已缓存: user_id={current_user.id}")
+
+        return bots
+    except Exception as e:
+        logger.error(f"获取机器人列表失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取机器人列表失败: {str(e)}"
+        )
 
 
 @router.get("/{bot_id}", response_model=BotResponse)
@@ -62,18 +90,41 @@ async def get_bot(
     db: Session = Depends(get_db)
 ):
     """获取指定机器人"""
-    bot = db.query(TradingBot).filter(
-        TradingBot.id == bot_id,
-        TradingBot.user_id == current_user.id
-    ).first()
+    try:
+        # 生成缓存键
+        cache_key = CacheKey.bot(bot_id)
 
-    if not bot:
+        # 尝试从缓存获取
+        cached_data = await cache_manager.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"机器人详情缓存命中: bot_id={bot_id}")
+            return cached_data
+
+        # 缓存未命中，查询数据库
+        bot = db.query(TradingBot).filter(
+            TradingBot.id == bot_id,
+            TradingBot.user_id == current_user.id
+        ).first()
+
+        if not bot:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="机器人不存在"
+            )
+
+        # 存入缓存
+        await cache_manager.set(cache_key, bot, CACHE_TTL_BOT_DETAIL)
+        logger.debug(f"机器人详情已缓存: bot_id={bot_id}")
+
+        return bot
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取机器人详情失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="机器人不存在"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取机器人详情失败: {str(e)}"
         )
-
-    return bot
 
 
 @router.put("/{bot_id}", response_model=BotResponse)

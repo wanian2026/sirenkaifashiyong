@@ -621,6 +621,11 @@ class CacheKey:
         return f"{CacheKey.TRADE_STATS}:{bot_id}:{days}days"
 
     @staticmethod
+    def bot_performance(bot_id: int) -> str:
+        """生成机器人性能缓存键"""
+        return f"{CacheKey.BOT}:{bot_id}:performance"
+
+    @staticmethod
     def market_data(symbol: str) -> str:
         """生成市场数据缓存键"""
         return f"{CacheKey.MARKET_DATA}:{symbol}"

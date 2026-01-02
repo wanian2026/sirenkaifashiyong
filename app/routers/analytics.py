@@ -9,11 +9,22 @@ from app.database import get_db
 from app.models import User
 from app.auth import get_current_user
 from app.analytics import AnalyticsEngine
+from app.cache import cached, CacheKey, CacheManager
 import logging
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# 缓存TTL设置（秒）
+CACHE_TTL_DASHBOARD = 60  # 仪表盘数据缓存1分钟
+CACHE_TTL_PROFIT_CURVE = 30  # 收益曲线缓存30秒
+CACHE_TTL_TRADE_STATS = 120  # 交易统计缓存2分钟
+CACHE_TTL_BOT_PERFORMANCE = 60  # 机器人性能缓存1分钟
+CACHE_TTL_HOURLY_TRADES = 300  # 每小时交易统计缓存5分钟
+
+# 全局缓存管理器
+cache_manager = CacheManager()
 
 
 @router.get("/dashboard")
@@ -32,8 +43,23 @@ async def get_dashboard_summary(
     - 最近交易记录
     """
     try:
+        # 生成缓存键
+        cache_key = CacheKey.user(current_user.id) + ":dashboard"
+
+        # 尝试从缓存获取
+        cached_data = await cache_manager.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"仪表盘数据缓存命中: user_id={current_user.id}")
+            return cached_data
+
+        # 缓存未命中，查询数据库
         analytics = AnalyticsEngine(db)
         summary = analytics.get_dashboard_summary(current_user.id)
+
+        # 存入缓存
+        await cache_manager.set(cache_key, summary, CACHE_TTL_DASHBOARD)
+        logger.debug(f"仪表盘数据已缓存: user_id={current_user.id}")
+
         return summary
     except Exception as e:
         logger.error(f"获取仪表盘数据失败: {e}")
@@ -65,12 +91,28 @@ async def get_profit_curve(
     - drawdowns: 回撤数据
     """
     try:
+        # 生成缓存键
+        bot_part = f"bot:{bot_id}" if bot_id else "all"
+        cache_key = CacheKey.user(current_user.id) + f":profit_curve:{bot_part}:{period}"
+
+        # 尝试从缓存获取
+        cached_data = await cache_manager.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"收益曲线缓存命中: {cache_key}")
+            return cached_data
+
+        # 缓存未命中，查询数据库
         analytics = AnalyticsEngine(db)
         profit_curve = analytics.get_profit_curve(
             user_id=current_user.id,
             bot_id=bot_id,
             period=period
         )
+
+        # 存入缓存
+        await cache_manager.set(cache_key, profit_curve, CACHE_TTL_PROFIT_CURVE)
+        logger.debug(f"收益曲线已缓存: {cache_key}")
+
         return profit_curve
     except Exception as e:
         logger.error(f"获取收益曲线失败: {e}")
@@ -103,11 +145,27 @@ async def get_trade_statistics(
     - pair_statistics: 按交易对统计
     """
     try:
+        # 生成缓存键
+        bot_part = f"bot:{bot_id}" if bot_id else "all"
+        cache_key = CacheKey.trade_stats(current_user.id, bot_id if bot_id else 0)
+
+        # 尝试从缓存获取
+        cached_data = await cache_manager.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"交易统计缓存命中: {cache_key}")
+            return cached_data
+
+        # 缓存未命中，查询数据库
         analytics = AnalyticsEngine(db)
         stats = analytics.get_trade_statistics(
             user_id=current_user.id,
             bot_id=bot_id
         )
+
+        # 存入缓存
+        await cache_manager.set(cache_key, stats, CACHE_TTL_TRADE_STATS)
+        logger.debug(f"交易统计已缓存: {cache_key}")
+
         return stats
     except Exception as e:
         logger.error(f"获取交易统计失败: {e}")
@@ -135,6 +193,16 @@ async def get_bot_performance(
     - 配置信息
     """
     try:
+        # 生成缓存键
+        cache_key = CacheKey.bot_performance(bot_id)
+
+        # 尝试从缓存获取
+        cached_data = await cache_manager.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"机器人性能缓存命中: {cache_key}")
+            return cached_data
+
+        # 缓存未命中，查询数据库
         analytics = AnalyticsEngine(db)
         performance = analytics.get_bot_performance(
             user_id=current_user.id,
@@ -146,6 +214,10 @@ async def get_bot_performance(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="机器人不存在"
             )
+
+        # 存入缓存
+        await cache_manager.set(cache_key, performance, CACHE_TTL_BOT_PERFORMANCE)
+        logger.debug(f"机器人性能已缓存: {cache_key}")
 
         return performance
     except HTTPException:
@@ -177,12 +249,28 @@ async def get_hourly_trades(
       - profit: 总盈利
     """
     try:
+        # 生成缓存键
+        bot_part = f"bot:{bot_id}" if bot_id else "all"
+        cache_key = CacheKey.user(current_user.id) + f":hourly_trades:{bot_part}:{days}days"
+
+        # 尝试从缓存获取
+        cached_data = await cache_manager.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"每小时交易统计缓存命中: {cache_key}")
+            return cached_data
+
+        # 缓存未命中，查询数据库
         analytics = AnalyticsEngine(db)
         hourly_trades = analytics.get_hourly_trades(
             user_id=current_user.id,
             bot_id=bot_id,
             days=days
         )
+
+        # 存入缓存
+        await cache_manager.set(cache_key, hourly_trades, CACHE_TTL_HOURLY_TRADES)
+        logger.debug(f"每小时交易统计已缓存: {cache_key}")
+
         return hourly_trades
     except Exception as e:
         logger.error(f"获取每小时交易统计失败: {e}")

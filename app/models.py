@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -35,6 +35,11 @@ class TradingBot(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    # 复合索引：用户机器人列表查询优化
+    __table_args__ = (
+        Index('idx_trading_bots_user_status', 'user_id', 'status'),
+    )
+
 
 class GridOrder(Base):
     __tablename__ = "grid_orders"
@@ -65,6 +70,12 @@ class GridOrder(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     filled_at = Column(DateTime(timezone=True))
 
+    # 复合索引：优化订单查询
+    __table_args__ = (
+        Index('idx_grid_orders_bot_status', 'bot_id', 'status'),
+        Index('idx_grid_orders_bot_level', 'bot_id', 'level'),
+    )
+
 
 class Trade(Base):
     __tablename__ = "trades"
@@ -79,3 +90,9 @@ class Trade(Base):
     fee = Column(Float, default=0)
     profit = Column(Float, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # 复合索引：优化交易记录查询
+    __table_args__ = (
+        Index('idx_trades_bot_created', 'bot_id', 'created_at'),
+        Index('idx_trades_bot_side_created', 'bot_id', 'side', 'created_at'),
+    )
