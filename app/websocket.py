@@ -204,9 +204,9 @@ async def market_data_stream(trading_pair: str, websocket: WebSocket, user_id: i
 
 async def kline_data_stream(
     trading_pair: str,
-    timeframe: str = '1h',
     websocket: WebSocket,
-    user_id: int
+    user_id: int,
+    timeframe: str = '1h'
 ):
     """K线数据实时推送"""
     # 订阅K线数据频道

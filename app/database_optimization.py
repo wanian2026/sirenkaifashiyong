@@ -149,7 +149,7 @@ class DatabaseOptimizer:
 
         return suggestions
 
-    def analyze_query_performance(self) -> Dict[str, Dict]]:
+    def analyze_query_performance(self) -> Dict[str, Dict]:
         """
         分析查询性能
 

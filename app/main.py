@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import engine
 from app.models import Base
-from app.routers import auth, bots, trades, orders, risk, backtest, notifications, rbac, optimization
+from app.routers import auth, bots, trades, orders, risk, backtest, notifications, rbac, optimization, exchange
 from app.websocket import manager, bot_status_stream, market_data_stream
 from typing import Dict
 import json
@@ -41,6 +41,7 @@ app.include_router(backtest.router, prefix="/api/backtest", tags=["回测"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["通知"])
 app.include_router(rbac.router, prefix="/api/rbac", tags=["权限管理"])
 app.include_router(optimization.router, prefix="/api/optimize", tags=["系统优化"])
+app.include_router(exchange.router, prefix="/api/exchange", tags=["交易所"])
 
 
 @app.get("/")
@@ -72,7 +73,11 @@ async def system_info():
             "马丁策略",
             "均值回归策略",
             "通知系统",
-            "RBAC权限管理"
+            "RBAC权限管理",
+            "实时市场数据",
+            "K线图表",
+            "深度图表",
+            "WebSocket实时推送"
         ]
     }
 

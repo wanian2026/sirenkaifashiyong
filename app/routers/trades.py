@@ -397,5 +397,3 @@ async def export_trades(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="不支持的导出格式"
         )
-            detail="不支持的导出格式"
-        )

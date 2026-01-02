@@ -148,9 +148,9 @@ async def reset_daily_limits(
 @router.post("/calculate/position-size")
 async def calculate_position_size_endpoint(
     account_balance: float,
-    risk_percent: float = Query(0.02, ge=0.01, le=0.1),
     entry_price: float,
-    stop_loss_price: float
+    stop_loss_price: float,
+    risk_percent: float = Query(0.02, ge=0.01, le=0.1)
 ):
     """
     计算建议仓位大小
