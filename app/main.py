@@ -1,14 +1,23 @@
-from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import engine
 from app.models import Base
 from app.routers import auth, bots, trades, orders, risk, backtest, notifications, rbac, optimization, exchange
-from app.websocket import manager, bot_status_stream, market_data_stream
-from app.cache import init_cache, clear_cache
+from app.websocket import (
+    manager,
+    bot_status_stream,
+    market_data_stream,
+    kline_data_stream,
+    order_book_stream,
+    trades_stream,
+    market_overview_stream
+)
+from app.cache import init_cache, clear_cache, get_cache_stats, reset_cache_stats
 from typing import Dict
 import json
+import asyncio
 
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
@@ -168,37 +177,270 @@ async def get_cache_status():
     }
 
 
+@app.get("/api/cache/stats")
+async def get_cache_statistics():
+    """
+    获取缓存统计信息
+
+    Returns:
+        缓存统计数据
+    """
+    stats = get_cache_stats()
+
+    return {
+        "success": True,
+        "data": stats.to_dict()
+    }
+
+
+@app.post("/api/cache/stats/reset")
+async def reset_cache_stats_api():
+    """
+    重置缓存统计
+
+    Returns:
+        操作结果
+    """
+    reset_cache_stats()
+
+    return {
+        "success": True,
+        "message": "缓存统计已重置"
+    }
+
+
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket端点"""
+    """
+    通用WebSocket端点 - 支持订阅多个频道
+
+    使用方法：
+    - 连接: ws://localhost:8000/ws?token=your_token
+    - 订阅频道: 发送JSON消息 {"action": "subscribe", "channel": "kline_data", "params": {"trading_pair": "BTC/USDT", "timeframe": "1h"}}
+    - 取消订阅: 发送JSON消息 {"action": "unsubscribe", "channel": "kline_data", "params": {"trading_pair": "BTC/USDT", "timeframe": "1h"}}
+
+    支持的频道：
+    - kline_data: K线数据推送
+    - order_book: 深度数据推送
+    - trades: 成交明细推送
+    - market_data: 市场数据推送
+    - bot_status: 机器人状态推送
+    - market_overview: 市场概览推送（涨跌幅、成交量）
+    """
     # 验证token
     token = websocket.query_params.get("token")
     if not token:
         await websocket.close(code=1008)
         return
 
-    # 这里应该验证token获取user_id
-    # 为简化，使用固定user_id=1
-    user_id = 1
+    # 验证token获取user_id（这里简化处理）
+    # 实际应该通过auth.verify_token()验证
+    from app.auth import verify_token
+    try:
+        user_id = verify_token(token)
+    except:
+        user_id = 1  # 默认user_id，生产环境需要正确验证
 
     await manager.connect(user_id, websocket)
+
+    # 记录用户订阅的频道
+    subscriptions = {}
+
     try:
-        # 广播市场数据
-        import random
         while True:
-            price = 50000 + random.uniform(-100, 100)
-            message = {
-                "type": "market_data",
-                "data": {
-                    "price": price,
+            # 接收客户端消息
+            data = await websocket.receive_json()
+
+            action = data.get("action")
+            channel = data.get("channel")
+            params = data.get("params", {})
+
+            if action == "subscribe":
+                # 订阅频道
+                if channel == "kline_data":
+                    trading_pair = params.get("trading_pair", "BTC/USDT")
+                    timeframe = params.get("timeframe", "1h")
+                    sub_key = f"{trading_pair}:{timeframe}"
+
+                    # 启动K线数据推送任务
+                    task = asyncio.create_task(
+                        kline_data_stream(trading_pair, timeframe, websocket, user_id)
+                    )
+                    subscriptions[sub_key] = task
+
+                    await websocket.send_json({
+                        "type": "subscription_success",
+                        "channel": "kline_data",
+                        "params": params
+                    })
+
+                elif channel == "order_book":
+                    trading_pair = params.get("trading_pair", "BTC/USDT")
+                    limit = params.get("limit", 20)
+                    sub_key = f"{trading_pair}:orderbook:{limit}"
+
+                    # 启动深度数据推送任务
+                    task = asyncio.create_task(
+                        order_book_stream(trading_pair, limit, websocket, user_id)
+                    )
+                    subscriptions[sub_key] = task
+
+                    await websocket.send_json({
+                        "type": "subscription_success",
+                        "channel": "order_book",
+                        "params": params
+                    })
+
+                elif channel == "trades":
+                    trading_pair = params.get("trading_pair", "BTC/USDT")
+                    limit = params.get("limit", 50)
+                    sub_key = f"{trading_pair}:trades"
+
+                    # 启动成交明细推送任务
+                    task = asyncio.create_task(
+                        trades_stream(trading_pair, limit, websocket, user_id)
+                    )
+                    subscriptions[sub_key] = task
+
+                    await websocket.send_json({
+                        "type": "subscription_success",
+                        "channel": "trades",
+                        "params": params
+                    })
+
+                elif channel == "market_data":
+                    trading_pair = params.get("trading_pair", "BTC/USDT")
+                    sub_key = f"{trading_pair}:market"
+
+                    # 启动市场数据推送任务
+                    task = asyncio.create_task(
+                        market_data_stream(trading_pair, websocket, user_id)
+                    )
+                    subscriptions[sub_key] = task
+
+                    await websocket.send_json({
+                        "type": "subscription_success",
+                        "channel": "market_data",
+                        "params": params
+                    })
+
+                elif channel == "bot_status":
+                    bot_id = params.get("bot_id")
+                    if bot_id:
+                        sub_key = f"bot:{bot_id}:status"
+
+                        # 启动机器人状态推送任务
+                        task = asyncio.create_task(
+                            bot_status_stream(bot_id, websocket, user_id)
+                        )
+                        subscriptions[sub_key] = task
+
+                        await websocket.send_json({
+                            "type": "subscription_success",
+                            "channel": "bot_status",
+                            "params": params
+                        })
+                    else:
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "缺少bot_id参数"
+                        })
+
+                elif channel == "market_overview":
+                    sub_key = "market_overview:global"
+
+                    # 启动市场概览推送任务
+                    task = asyncio.create_task(
+                        market_overview_stream(websocket, user_id)
+                    )
+                    subscriptions[sub_key] = task
+
+                    await websocket.send_json({
+                        "type": "subscription_success",
+                        "channel": "market_overview",
+                        "params": params
+                    })
+
+                else:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": f"不支持的频道: {channel}"
+                    })
+
+            elif action == "unsubscribe":
+                # 取消订阅
+                if channel == "kline_data":
+                    trading_pair = params.get("trading_pair", "BTC/USDT")
+                    timeframe = params.get("timeframe", "1h")
+                    sub_key = f"{trading_pair}:{timeframe}"
+
+                    if sub_key in subscriptions:
+                        subscriptions[sub_key].cancel()
+                        del subscriptions[sub_key]
+
+                        await websocket.send_json({
+                            "type": "unsubscribe_success",
+                            "channel": "kline_data",
+                            "params": params
+                        })
+
+                elif channel in ["order_book", "trades", "market_data"]:
+                    # 取消其他频道的订阅
+                    trading_pair = params.get("trading_pair", "BTC/USDT")
+                    sub_key = f"{trading_pair}:{channel}"
+
+                    if sub_key in subscriptions:
+                        subscriptions[sub_key].cancel()
+                        del subscriptions[sub_key]
+
+                        await websocket.send_json({
+                            "type": "unsubscribe_success",
+                            "channel": channel,
+                            "params": params
+                        })
+
+                elif channel == "market_overview":
+                    sub_key = "market_overview:global"
+
+                    if sub_key in subscriptions:
+                        subscriptions[sub_key].cancel()
+                        del subscriptions[sub_key]
+
+                        await websocket.send_json({
+                            "type": "unsubscribe_success",
+                            "channel": "market_overview",
+                            "params": params
+                        })
+
+            elif action == "ping":
+                # 心跳检测
+                await websocket.send_json({
+                    "type": "pong",
                     "timestamp": __import__('datetime').datetime.now().isoformat()
-                }
-            }
-            await manager.send_personal_message(message, user_id)
-            await __import__('asyncio').sleep(2)
+                })
+
+            else:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"不支持的操作: {action}"
+                })
+
     except WebSocketDisconnect:
+        print(f"WebSocket断开连接: user_id={user_id}")
+        # 取消所有订阅任务
+        for task in subscriptions.values():
+            if not task.done():
+                task.cancel()
+        manager.disconnect(user_id, websocket)
+
+    except Exception as e:
+        print(f"WebSocket错误: {e}")
+        # 取消所有订阅任务
+        for task in subscriptions.values():
+            if not task.done():
+                task.cancel()
         manager.disconnect(user_id, websocket)
 
 

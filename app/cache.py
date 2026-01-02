@@ -158,17 +158,37 @@ class CacheManager:
     async def get(self, key: str) -> Optional[Any]:
         """获取缓存"""
         full_key = self._make_key(key)
-        return await self.backend.get(full_key)
+        result = await self.backend.get(full_key)
+
+        # 更新统计（如果已初始化）
+        global _cache_stats
+        if _cache_stats is not None:
+            if result is not None:
+                _cache_stats.hit()
+            else:
+                _cache_stats.miss()
+
+        return result
 
     async def set(self, key: str, value: Any, ttl: int = None):
         """设置缓存"""
         full_key = self._make_key(key)
         await self.backend.set(full_key, value, ttl)
 
+        # 更新统计（如果已初始化）
+        global _cache_stats
+        if _cache_stats is not None:
+            _cache_stats.set_count()
+
     async def delete(self, key: str):
         """删除缓存"""
         full_key = self._make_key(key)
         await self.backend.delete(full_key)
+
+        # 更新统计（如果已初始化）
+        global _cache_stats
+        if _cache_stats is not None:
+            _cache_stats.delete_count()
 
     async def clear(self):
         """清空缓存"""
@@ -198,6 +218,240 @@ class CacheManager:
                 await self.backend.delete(key)
 
 
+# ==================== 全局缓存管理器 ====================
+
+_global_cache: Optional[CacheManager] = None
+
+
+def init_cache(
+    redis_enabled: bool = False,
+    host: str = 'localhost',
+    port: int = 6379,
+    db: int = 0,
+    password: str = None
+):
+    """
+    初始化全局缓存管理器
+
+    Args:
+        redis_enabled: 是否启用Redis
+        host: Redis主机
+        port: Redis端口
+        db: Redis数据库
+        password: Redis密码
+    """
+    global _global_cache
+
+    if redis_enabled:
+        backend = RedisCache(
+            host=host,
+            port=port,
+            db=db,
+            password=password
+        )
+        logger.info(f"初始化Redis缓存: {host}:{port}")
+    else:
+        backend = MemoryCache()
+        logger.info("初始化内存缓存")
+
+    _global_cache = CacheManager(backend)
+
+
+def get_cache() -> CacheManager:
+    """
+    获取全局缓存管理器
+
+    Returns:
+        CacheManager实例
+
+    Raises:
+        RuntimeError: 如果缓存未初始化
+    """
+    if _global_cache is None:
+        raise RuntimeError("缓存未初始化，请先调用init_cache()")
+    return _global_cache
+
+
+async def clear_cache(pattern: str = None):
+    """
+    清空缓存
+
+    Args:
+        pattern: 匹配模式，如果为None则清空所有缓存
+    """
+    cache = get_cache()
+
+    if pattern:
+        await cache.delete_pattern(pattern)
+        logger.info(f"已清空匹配模式的缓存: {pattern}")
+    else:
+        await cache.clear()
+        logger.info("已清空所有缓存")
+
+
+# ==================== 缓存装饰器 ====================
+
+def cached(
+    key_prefix: str,
+    ttl: int = None,
+    key_builder: Callable = None
+):
+    """
+    缓存装饰器
+
+    Args:
+        key_prefix: 缓存键前缀
+        ttl: 缓存时间（秒）
+        key_builder: 自定义键构建函数，参数为函数参数，返回缓存键
+
+    Returns:
+        装饰器函数
+
+    Usage:
+        @cached(key_prefix="ticker:", ttl=5)
+        async def get_ticker(symbol: str):
+            ...
+    """
+    def decorator(func: Callable):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            cache = get_cache()
+
+            # 构建缓存键
+            if key_builder:
+                cache_key = key_builder(*args, **kwargs)
+            else:
+                # 默认键构建：前缀 + 参数字符串
+                args_str = ",".join([str(arg) for arg in args])
+                kwargs_str = ",".join([f"{k}={v}" for k, v in sorted(kwargs.items())])
+                cache_key = f"{key_prefix}:{args_str}:{kwargs_str}"
+
+            # 尝试从缓存获取
+            cached_value = await cache.get(cache_key)
+            if cached_value is not None:
+                logger.debug(f"缓存命中: {cache_key}")
+                return cached_value
+
+            # 执行函数
+            result = await func(*args, **kwargs)
+
+            # 存入缓存
+            await cache.set(cache_key, result, ttl)
+            logger.debug(f"缓存设置: {cache_key}, TTL={ttl}")
+
+            return result
+
+        return wrapper
+    return decorator
+
+
+def cached_async_result(
+    key_prefix: str,
+    ttl: int = None,
+    args_to_key: Callable = None
+):
+    """
+    异步结果缓存装饰器（简化版）
+
+    Args:
+        key_prefix: 缓存键前缀
+        ttl: 缓存时间（秒）
+        args_to_key: 将参数转换为缓存键的函数
+
+    Returns:
+        装饰器函数
+    """
+    def decorator(func: Callable):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            cache = get_cache()
+
+            # 构建缓存键
+            if args_to_key:
+                cache_key = f"{key_prefix}:{args_to_key(*args, **kwargs)}"
+            else:
+                # 简单的键生成
+                cache_key = f"{key_prefix}:{hash(str(args) + str(sorted(kwargs.items())))}"
+
+            # 尝试从缓存获取
+            result = await cache.get(cache_key)
+            if result is not None:
+                return result
+
+            # 执行函数
+            result = await func(*args, **kwargs)
+
+            # 存入缓存
+            await cache.set(cache_key, result, ttl)
+
+            return result
+
+        return wrapper
+    return decorator
+
+
+# ==================== 缓存统计 ====================
+
+class CacheStats:
+    """缓存统计"""
+
+    def __init__(self):
+        self.hits = 0
+        self.misses = 0
+        self.sets = 0
+        self.deletes = 0
+
+    def hit(self):
+        """缓存命中"""
+        self.hits += 1
+
+    def miss(self):
+        """缓存未命中"""
+        self.misses += 1
+
+    def set_count(self):
+        """缓存设置"""
+        self.sets += 1
+
+    def delete_count(self):
+        """缓存删除"""
+        self.deletes += 1
+
+    def get_hit_rate(self) -> float:
+        """获取缓存命中率"""
+        total = self.hits + self.misses
+        return (self.hits / total * 100) if total > 0 else 0.0
+
+    def reset(self):
+        """重置统计"""
+        self.hits = 0
+        self.misses = 0
+        self.sets = 0
+        self.deletes = 0
+
+    def to_dict(self) -> dict:
+        """转换为字典"""
+        return {
+            "hits": self.hits,
+            "misses": self.misses,
+            "sets": self.sets,
+            "deletes": self.deletes,
+            "hit_rate": f"{self.get_hit_rate():.2f}%"
+        }
+
+
+# 全局缓存统计
+_cache_stats = CacheStats()
+
+
+def get_cache_stats() -> CacheStats:
+    """获取缓存统计"""
+    return _cache_stats
+
+
+def reset_cache_stats():
+    """重置缓存统计"""
+    _cache_stats.reset()
 # 全局缓存管理器
 _global_cache: Optional[CacheManager] = None
 

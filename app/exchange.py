@@ -265,7 +265,7 @@ class ExchangeAPI:
 
     async def get_trades(self, symbol: str, limit: int = 50) -> List[Dict]:
         """
-        获取成交记录
+        获取成交记录（带缓存）
 
         Args:
             symbol: 交易对
@@ -274,6 +274,15 @@ class ExchangeAPI:
         Returns:
             成交记录列表
         """
+        cache = get_cache()
+        cache_key = f"trades:{symbol}:{limit}"
+
+        # 尝试从缓存获取（缓存时间10秒）
+        cached_data = await cache.get(cache_key)
+        if cached_data:
+            logger.debug(f"命中缓存: {cache_key}")
+            return cached_data
+
         try:
             trades = await asyncio.to_thread(self.exchange.fetch_trades, symbol, limit=limit)
 
@@ -292,6 +301,10 @@ class ExchangeAPI:
                     "cost": trade.get('cost'),
                     "fee": trade.get('fee')
                 })
+
+            # 存入缓存（10秒）
+            await cache.set(cache_key, formatted_trades, ttl=10)
+            logger.debug(f"存入缓存: {cache_key}")
 
             return formatted_trades
         except Exception as e:

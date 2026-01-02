@@ -28,6 +28,8 @@
 - `GET /api/cache/status` - 查看缓存状态
 - `POST /api/cache/clear` - 清空缓存
 - `POST /api/cache/refresh` - 刷新指定类型缓存
+- `GET /api/cache/stats` - 获取缓存统计信息
+- `POST /api/cache/stats/reset` - 重置缓存统计
 
 ### 4. 自动缓存失效
 - 基于TTL（Time To Live）自动过期
@@ -243,6 +245,40 @@ curl -X POST "http://localhost:8000/api/cache/refresh?cache_type=orderbook"
 
 # 刷新所有缓存
 curl -X POST "http://localhost:8000/api/cache/refresh?cache_type=all"
+```
+
+### 5. 获取缓存统计信息
+
+```bash
+curl http://localhost:8000/api/cache/stats
+```
+
+响应：
+```json
+{
+  "success": true,
+  "data": {
+    "hits": 1450,
+    "misses": 50,
+    "sets": 1500,
+    "deletes": 10,
+    "hit_rate": "96.67%"
+  }
+}
+```
+
+### 6. 重置缓存统计
+
+```bash
+curl -X POST http://localhost:8000/api/cache/stats/reset
+```
+
+响应：
+```json
+{
+  "success": true,
+  "message": "缓存统计已重置"
+}
 ```
 
 ---
