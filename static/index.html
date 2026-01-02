@@ -354,8 +354,8 @@
                             <p><strong>策略:</strong> ${bot.strategy}</p>
                             <div class="mt-3">
                                 ${bot.status === 'running'
-                                    ? `<button class="btn btn-danger" onclick="stopBot(${bot.id})">停止</button>
-                                    : `<button class="btn btn-success" onclick="startBot(${bot.id})">启动</button>`
+                                    ? '<button class="btn btn-danger" onclick="stopBot(' + bot.id + ')">停止</button>'
+                                    : '<button class="btn btn-success" onclick="startBot(' + bot.id + ')">启动</button>'
                                 }
                                 <button class="btn btn-info" onclick="viewBotStatus(${bot.id})">状态</button>
                                 <button class="btn btn-danger" onclick="deleteBot(${bot.id})">删除</button>
