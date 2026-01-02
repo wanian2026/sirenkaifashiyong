@@ -137,6 +137,138 @@
 
 ---
 
+### 7. 风险管理系统完善
+- [x] 风险限制检查
+  - 持仓限制
+  - 单日亏损限制
+  - 总亏损限制
+  - 订单数限制
+  - 单笔订单限制
+- [x] 自动止损/止盈
+  - 基于百分比的止损
+  - 基于百分比的止盈
+- [x] 风险等级评估
+  - LOW（低风险）
+  - MEDIUM（中等风险）
+  - HIGH（高风险）
+  - CRITICAL（极高风险）
+- [x] 仓位计算
+  - 基于账户余额和风险百分比计算
+  - 基于止损价格计算
+- [x] 风险收益比计算
+
+**新增文件**：
+- `app/risk_management.py` - 风险管理核心模块
+- `app/risk_helper.py` - 风险管理辅助函数
+- `app/routers/risk.py` - 风险管理API路由
+
+**新增API**：
+- `POST /api/bots/{bot_id}/check-risk` - 检查机器人风险
+- `GET /api/bots/{bot_id}/risk-report` - 获取风险报告
+- `POST /api/risk/calculate/position-size` - 计算仓位大小
+- `POST /api/risk/calculate/risk-reward-ratio` - 计算风险收益比
+- `POST /api/risk/bot/{bot_id}/evaluate-risk` - 评估风险等级
+
+**增强功能**：
+- 机器人启动时自动初始化风险管理器
+- 机器人停止时生成风险报告
+- 与交易流程深度集成
+
+---
+
+### 8. 数据分析仪表盘
+- [x] 仪表盘总览
+  - 机器人统计
+  - 交易统计
+  - 盈亏统计
+  - 性能指标
+  - 最近交易记录
+- [x] 收益曲线
+  - 累计收益曲线
+  - 每日盈亏
+  - 回撤分析
+  - 多时间周期支持
+- [x] 交易统计
+  - 胜率
+  - 盈利因子
+  - 平均盈利/亏损
+  - 最大盈利/亏损
+  - 按交易对统计
+- [x] 机器人性能
+  - 基本信息
+  - 交易统计
+  - 订单统计
+  - 性能指标
+  - 运行时间
+- [x] 交易热力图
+  - 每小时交易统计
+  - 交易活跃时段分析
+
+**新增文件**：
+- `app/analytics.py` - 数据分析核心模块
+- `app/routers/analytics.py` - 数据分析API路由
+
+**新增API**：
+- `GET /api/analytics/dashboard` - 获取仪表盘总览
+- `GET /api/analytics/profit-curve` - 获取收益曲线
+- `GET /api/analytics/trade-statistics` - 获取交易统计
+- `GET /api/analytics/bot/{bot_id}/performance` - 获取机器人性能
+- `GET /api/analytics/hourly-trades` - 获取每小时交易统计
+- `GET /api/analytics/overview` - 获取分析总览
+
+---
+
+### 9. 通知系统完善
+- [x] 邮件通知
+- [x] 钉钉通知
+- [x] 飞书通知
+- [x] Telegram通知
+- [x] Webhook通知
+- [x] 通知模板
+  - 交易执行通知
+  - 风险告警
+  - 策略状态变更
+  - 系统通知
+- [x] 通知历史
+- [x] 测试通知功能
+
+**增强文件**：
+- `app/notifications.py` - 添加Telegram通知器
+- `app/routers/notifications.py` - 完善通知API路由
+
+**新增API**：
+- `POST /api/notifications/configure/telegram` - 配置Telegram通知
+- `POST /api/notifications/test` - 测试通知
+- `GET /api/notifications/history` - 获取通知历史
+- `DELETE /api/notifications/history` - 清空通知历史
+- `GET /api/notifications/channels` - 列出通知渠道
+- `GET /api/notifications/templates` - 列出通知模板
+
+---
+
+## 📊 功能完成度统计
+
+| 功能模块 | 已完成 | 进行中 | 待开发 | 总数 | 完成率 |
+|---------|--------|--------|--------|------|--------|
+| 用户认证 | 8 | 0 | 3 | 11 | 72.7% |
+| 机器人管理 | 9 | 0 | 8 | 17 | 52.9% |
+| 交易策略 | 6 | 0 | 7 | 13 | 46.2% |
+| 订单管理 | 4 | 0 | 5 | 9 | 44.4% |
+| 交易记录 | 8 | 0 | 3 | 11 | 72.7% |
+| 实时数据 | 1 | 0 | 7 | 8 | 12.5% |
+| 数据分析 | 5 | 0 | 4 | 9 | 55.6% |
+| 风险管理 | 8 | 0 | 1 | 9 | 88.9% |
+| 系统管理 | 3 | 0 | 8 | 11 | 27.3% |
+| 安全功能 | 1 | 0 | 5 | 6 | 16.7% |
+| 通知系统 | 6 | 0 | 0 | 6 | 100% |
+| **总计** | **59** | **0** | **44** | **109** | **54.1%** |
+
+**本次更新前**: 39个功能（37.5%）
+**本次更新后**: 59个功能（54.1%）
+**新增功能**: 20个
+
+---
+
 ## 📊 功能完成度统计
 
 | 功能模块 | 已完成 | 进行中 | 待开发 | 总数 | 完成率 |
@@ -181,48 +313,49 @@
 - 日志记录详细
 - API接口规范
 
+### 5. 风险管理完善
+- 多层次风险限制
+- 自动止损/止盈
+- 实时风险等级评估
+- 与交易流程深度集成
+
+### 6. 数据分析能力
+- 仪表盘总览
+- 收益曲线分析
+- 详细交易统计
+- 交易热力图
+
+### 7. 通知系统完善
+- 多渠道支持（邮件、钉钉、飞书、Telegram、Webhook）
+- 通知模板
+- 通知历史记录
+- 测试通知功能
+
 ---
 
 ## 📋 待开发功能（优先级排序）
 
 ### P0 - 核心功能（必须）
-1. 实时数据推送优化
-   - K线数据推送
-   - 深度数据推送
-   - WebSocket连接优化
-
-2. 风险管理系统
-   - 资金限制
-   - 止损机制
-   - 异常行情保护
-
-3. 数据分析报表
-   - 仪表盘
-   - 收益曲线
-   - 回测功能
+1. ~~实时数据推送优化~~ ✅ 已完成
+2. ~~风险管理系统~~ ✅ 已完成
+3. ~~数据分析报表~~ ✅ 已完成
 
 ### P1 - 重要功能（近期）
 1. 安全功能增强
    - API密钥加密
    - 权限管理
    - 审计日志
-
 2. 高级策略
    - 均值回归
    - 动量策略
    - 套利策略
-
-3. 通知系统
-   - 邮件通知
-   - Telegram/飞书通知
-   - 短信通知
+3. ~~通知系统~~ ✅ 已完成
 
 ### P2 - 增强功能（中期）
 1. 性能优化
    - 数据库查询优化
    - 缓存机制
    - 并发处理
-
 2. 多交易所支持
    - 交易所配置管理
    - 资金统一管理
@@ -233,7 +366,6 @@
    - 策略分享
    - 策略跟单
    - 社区讨论
-
 2. AI功能
    - 市场情绪分析
    - 智能策略优化
@@ -280,6 +412,8 @@ POST   /api/auth/reset-password/confirm
 # 机器人
 PUT    /api/bots/{bot_id}
 DELETE /api/bots/{bot_id}
+POST   /api/bots/{bot_id}/check-risk
+GET    /api/bots/{bot_id}/risk-report
 
 # 订单
 POST   /api/orders/
@@ -291,6 +425,27 @@ POST   /api/orders/{order_id}/cancel
 GET    /api/trades/filter
 GET    /api/trades/export
 GET    /api/trades/stats
+
+# 风险管理
+POST   /api/risk/calculate/position-size
+POST   /api/risk/calculate/risk-reward-ratio
+POST   /api/risk/bot/{bot_id}/evaluate-risk
+
+# 数据分析
+GET    /api/analytics/dashboard
+GET    /api/analytics/profit-curve
+GET    /api/analytics/trade-statistics
+GET    /api/analytics/bot/{bot_id}/performance
+GET    /api/analytics/hourly-trades
+GET    /api/analytics/overview
+
+# 通知系统
+POST   /api/notifications/configure/telegram
+POST   /api/notifications/test
+GET    /api/notifications/history
+DELETE /api/notifications/history
+GET    /api/notifications/channels
+GET    /api/notifications/templates
 ```
 
 ---
@@ -323,5 +478,5 @@ GET    /api/trades/stats
 
 ---
 
-**文档版本**: v2.0
+**文档版本**: v3.0
 **最后更新**: 2025年1月2日

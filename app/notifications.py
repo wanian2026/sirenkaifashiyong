@@ -17,6 +17,7 @@ class NotificationChannel(Enum):
     DINGTALK = "dingtalk"
     FEISHU = "feishu"
     WECHAT = "wechat"
+    TELEGRAM = "telegram"
     WEBHOOK = "webhook"
 
 
@@ -285,6 +286,54 @@ class WebhookNotifier:
             return False
 
 
+class TelegramNotifier:
+    """Telegram通知器"""
+
+    def __init__(self, bot_token: str, chat_id: str):
+        self.bot_token = bot_token
+        self.chat_id = chat_id
+        self.api_url = f"https://api.telegram.org/bot{bot_token}"
+
+    async def send(
+        self,
+        title: str,
+        content: str,
+        parse_mode: str = "Markdown"
+    ) -> bool:
+        """发送Telegram消息"""
+        try:
+            import asyncio
+            import aiohttp
+
+            # 构造消息
+            message = f"*{title}*\n\n{content}"
+
+            # 构造API URL
+            url = f"{self.api_url}/sendMessage"
+
+            # 发送请求
+            data = {
+                "chat_id": self.chat_id,
+                "text": message,
+                "parse_mode": parse_mode
+            }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=data) as response:
+                    result = await response.json()
+
+                    if result.get('ok'):
+                        logger.info(f"Telegram消息发送成功")
+                        return True
+                    else:
+                        logger.error(f"Telegram消息发送失败: {result}")
+                        return False
+
+        except Exception as e:
+            logger.error(f"Telegram消息发送失败: {e}")
+            return False
+
+
 class NotificationManager:
     """通知管理器"""
 
@@ -293,6 +342,7 @@ class NotificationManager:
             NotificationChannel.EMAIL: [],
             NotificationChannel.DINGTALK: [],
             NotificationChannel.FEISHU: [],
+            NotificationChannel.TELEGRAM: [],
             NotificationChannel.WEBHOOK: []
         }
         self.notification_history: List[Dict] = []
@@ -329,6 +379,8 @@ class NotificationManager:
                         result = await notifier.send(title, content)
                     elif channel == NotificationChannel.FEISHU:
                         result = await notifier.send(title, content)
+                    elif channel == NotificationChannel.TELEGRAM:
+                        result = await notifier.send(title, content)
                     elif channel == NotificationChannel.WEBHOOK:
                         result = await notifier.send({
                             'title': title,
@@ -353,9 +405,9 @@ class NotificationManager:
             'timestamp': datetime.now().isoformat(),
             'title': title,
             'content': content,
-            'channels': channels,
+            'channels': [c.value for c in channels],
             'level': level.value,
-            'results': results
+            'results': {k.value: v for k, v in results.items()}
         })
 
         # 限制历史记录数量

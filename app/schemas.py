@@ -134,3 +134,96 @@ class TradeResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ============ 风险管理相关 Schema ============
+
+class RiskConfig(BaseModel):
+    """风险管理配置"""
+    max_position: float = 10000
+    max_daily_loss: float = 1000
+    max_total_loss: float = 5000
+    max_orders: int = 50
+    max_single_order: float = 1000
+    stop_loss_threshold: float = 0.05
+    take_profit_threshold: float = 0.10
+    enable_auto_stop: bool = True
+
+
+class RiskCheckRequest(BaseModel):
+    """风险检查请求"""
+    position_value: float = 0
+    order_value: float = 0
+
+
+class RiskCheckResponse(BaseModel):
+    """风险检查响应"""
+    passed: bool
+    errors: list
+    risk_report: dict
+    risk_level: str
+    recommendation: str
+
+
+class PositionSizeRequest(BaseModel):
+    """仓位计算请求"""
+    account_balance: float
+    entry_price: float
+    stop_loss_price: float
+    risk_percent: float = 0.02
+
+
+class PositionSizeResponse(BaseModel):
+    """仓位计算响应"""
+    account_balance: float
+    risk_percent: float
+    risk_amount: float
+    entry_price: float
+    stop_loss_price: float
+    position_size: float
+    position_value: float
+    loss_per_unit: float
+    risk_reward_ratio_warning: bool
+
+
+class RiskRewardRatioRequest(BaseModel):
+    """风险收益比计算请求"""
+    entry_price: float
+    stop_loss_price: float
+    take_profit_price: float
+
+
+class RiskRewardRatioResponse(BaseModel):
+    """风险收益比计算响应"""
+    entry_price: float
+    stop_loss_price: float
+    take_profit_price: float
+    risk: float
+    reward: float
+    risk_reward_ratio: float
+    suggestion: str
+
+
+class RiskLevelEvaluateRequest(BaseModel):
+    """风险等级评估请求"""
+    position_value: float
+    unrealized_pnl: float
+    volatility: float = 0
+
+
+class RiskLevelEvaluateResponse(BaseModel):
+    """风险等级评估响应"""
+    risk_level: str
+    advice: str
+    position_value: float
+    unrealized_pnl: float
+    volatility: float
+
+
+class RiskAlert(BaseModel):
+    """风险警报"""
+    type: str
+    message: str
+    severity: str
+    symbol: str
+

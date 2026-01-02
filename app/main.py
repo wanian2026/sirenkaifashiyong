@@ -4,7 +4,10 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import engine
 from app.models import Base
-from app.routers import auth, bots, trades, orders, risk, backtest, notifications, rbac, optimization, exchange
+from app.routers import (
+    auth, bots, trades, orders, risk, backtest,
+    notifications, rbac, optimization, exchange, analytics
+)
 from app.websocket import (
     manager,
     bot_status_stream,
@@ -61,6 +64,7 @@ app.include_router(notifications.router, prefix="/api/notifications", tags=["通
 app.include_router(rbac.router, prefix="/api/rbac", tags=["权限管理"])
 app.include_router(optimization.router, prefix="/api/optimize", tags=["系统优化"])
 app.include_router(exchange.router, prefix="/api/exchange", tags=["交易所"])
+app.include_router(analytics.router, prefix="/api/analytics", tags=["数据分析"])
 
 
 @app.get("/")
@@ -97,7 +101,11 @@ async def system_info():
             "K线图表",
             "深度图表",
             "WebSocket实时推送",
-            "Redis缓存"
+            "Redis缓存",
+            "风险管理",
+            "数据分析仪表盘",
+            "收益曲线",
+            "交易统计"
         ]
     }
 

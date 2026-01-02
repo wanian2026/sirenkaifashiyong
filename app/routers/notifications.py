@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict
 from pydantic import BaseModel
+from datetime import datetime
 import json
 
 from app.database import get_db
@@ -18,6 +19,7 @@ from app.notifications import (
     EmailNotifier,
     DingTalkNotifier,
     FeishuNotifier,
+    TelegramNotifier,
     WebhookNotifier,
     notification_manager
 )
@@ -41,6 +43,11 @@ class DingTalkConfig(BaseModel):
 
 class FeishuConfig(BaseModel):
     webhook_url: str
+
+
+class TelegramConfig(BaseModel):
+    bot_token: str
+    chat_id: str
 
 
 class WebhookConfig(BaseModel):
@@ -133,6 +140,32 @@ async def configure_feishu(
         )
 
 
+@router.post("/configure/telegram")
+async def configure_telegram(
+    config: TelegramConfig,
+    current_user: User = Depends(get_current_user)
+):
+    """配置Telegram通知"""
+    try:
+        notifier = TelegramNotifier(
+            bot_token=config.bot_token,
+            chat_id=config.chat_id
+        )
+
+        notification_manager.add_notifier(NotificationChannel.TELEGRAM, notifier)
+
+        return {
+            "message": "Telegram通知配置成功",
+            "channel": "telegram"
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"配置失败: {str(e)}"
+        )
+
+
 @router.post("/configure/webhook")
 async def configure_webhook(
     config: WebhookConfig,
@@ -207,7 +240,7 @@ async def send_notification(
 
 @router.post("/test")
 async def test_notification(
-    channel: str = Query(..., regex="^(email|dingtalk|feishu|webhook)$"),
+    channel: str = Query(..., regex="^(email|dingtalk|feishu|telegram|webhook)$"),
     current_user: User = Depends(get_current_user)
 ):
     """测试通知"""
@@ -216,13 +249,13 @@ async def test_notification(
 
         results = await notification_manager.send_notification(
             title="测试通知",
-            content=f"这是一条测试通知\n\n发送时间: {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n发送用户: {current_user.username}",
+            content=f"这是一条测试通知\n时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n用户: {current_user.username}",
             channels=[notification_channel],
             level=NotificationLevel.INFO
         )
 
         return {
-            "message": "测试通知已发送",
+            "message": "测试通知发送完成",
             "channel": channel,
             "success": results.get(notification_channel, False)
         }
@@ -230,22 +263,51 @@ async def test_notification(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"测试失败: {str(e)}"
+            detail=f"测试通知失败: {str(e)}"
         )
 
 
 @router.get("/history")
 async def get_notification_history(
-    limit: int = Query(100, ge=1, le=1000),
+    limit: int = Query(50, ge=1, le=1000),
     current_user: User = Depends(get_current_user)
 ):
     """获取通知历史"""
-    history = notification_manager.get_notification_history(limit=limit)
+    try:
+        history = notification_manager.notification_history
+        # 返回最近N条记录
+        recent_history = history[-limit:] if len(history) > limit else history
 
-    return {
-        "total": len(history),
-        "history": history
-    }
+        return {
+            "total": len(history),
+            "limit": limit,
+            "history": recent_history
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取通知历史失败: {str(e)}"
+        )
+
+
+@router.delete("/history")
+async def clear_notification_history(
+    current_user: User = Depends(get_current_user)
+):
+    """清空通知历史"""
+    try:
+        notification_manager.notification_history = []
+
+        return {
+            "message": "通知历史已清空"
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"清空通知历史失败: {str(e)}"
+        )
 
 
 @router.get("/channels")
@@ -267,6 +329,11 @@ async def list_notification_channels():
                 "id": "feishu",
                 "name": "飞书通知",
                 "description": "通过飞书机器人发送群消息"
+            },
+            {
+                "id": "telegram",
+                "name": "Telegram通知",
+                "description": "通过Telegram Bot发送消息"
             },
             {
                 "id": "webhook",
