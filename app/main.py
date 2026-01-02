@@ -6,7 +6,7 @@ from app.database import engine
 from app.models import Base
 from app.routers import (
     auth, bots, trades, orders, risk, backtest,
-    notifications, rbac, optimization, exchange, analytics, strategies, websocket, audit_log
+    notifications, rbac, optimization, exchange, analytics, strategies, websocket, audit_log, log_manager, database_manager, performance_monitor, bot_performance, risk_enhanced
 )
 from app.middleware import AuditLogMiddleware
 from app.websocket import (
@@ -73,6 +73,11 @@ app.include_router(analytics.router, prefix="/api/analytics", tags=["数据分�
 app.include_router(strategies.router, prefix="/api/strategies", tags=["高级策略"])
 app.include_router(websocket.router, tags=["WebSocket"])
 app.include_router(audit_log.router, tags=["审计日志"])
+app.include_router(log_manager.router, tags=["日志管理"])
+app.include_router(database_manager.router, tags=["数据库管理"])
+app.include_router(performance_monitor.router, tags=["性能监控"])
+app.include_router(bot_performance.router, tags=["机器人性能管理"])
+app.include_router(risk_enhanced.router, prefix="/api", tags=["风险管理增强"])
 
 
 @app.get("/")
