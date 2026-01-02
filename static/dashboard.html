@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易系统仪表盘</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            text-align: center;
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card h3 {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .stat-card .trend {
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .trend.up {
+            color: #4caf50;
+        }
+
+        .trend.down {
+            color: #f44336;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .chart-card h2 {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .controls {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .controls h2 {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group label {
+            font-weight: 500;
+            color: #666;
+        }
+
+        .control-group select,
+        .control-group input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .control-group button {
+            padding: 8px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .control-group button:hover {
+            background: #5568d3;
+        }
+
+        .bots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .bot-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .bot-card h3 {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .bot-card .info {
+            font-size: 0.9em;
+            color: #666;
+            margin: 5px 0;
+        }
+
+        .bot-card .status {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-top: 10px;
+        }
+
+        .status.running {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status.stopped {
+            background: #9e9e9e;
+            color: white;
+        }
+
+        .bot-card .actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .bot-card .actions button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+
+        .btn-start {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-stop {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-view {
+            background: #2196f3;
+            color: white;
+        }
+
+        .btn-start:hover,
+        .btn-stop:hover,
+        .btn-view:hover {
+            opacity: 0.9;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-container {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🚀 加密货币交易系统</h1>
+            <div class="subtitle">基于LangGraph工作流的智能交易平台</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>总资产</h3>
+                <div class="value" id="total-assets">$0.00</div>
+                <div class="trend up">↑ 0.00%</div>
+            </div>
+            <div class="stat-card">
+                <h3>今日盈亏</h3>
+                <div class="value" id="daily-pnl">$0.00</div>
+                <div class="trend" id="daily-pnl-trend">↑ 0.00%</div>
+            </div>
+            <div class="stat-card">
+                <h3>运行机器人</h3>
+                <div class="value" id="active-bots">0</div>
+                <div class="trend">总计 0</div>
+            </div>
+            <div class="stat-card">
+                <h3>总交易次数</h3>
+                <div class="value" id="total-trades">0</div>
+                <div class="trend">胜率 0%</div>
+            </div>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="controls">
+            <h2>⚙️ 仪表盘控制</h2>
+            <div class="control-group">
+                <label>时间范围:</label>
+                <select id="time-range">
+                    <option value="1d">24小时</option>
+                    <option value="7d">7天</option>
+                    <option value="30d" selected>30天</option>
+                    <option value="90d">90天</option>
+                </select>
+
+                <label>交易对:</label>
+                <select id="trading-pair">
+                    <option value="BTC/USDT" selected>BTC/USDT</option>
+                    <option value="ETH/USDT">ETH/USDT</option>
+                    <option value="BNB/USDT">BNB/USDT</option>
+                </select>
+
+                <button onclick="refreshData()">🔄 刷新数据</button>
+                <button onclick="runBacktest()">📊 运行回测</button>
+            </div>
+        </div>
+
+        <!-- 图表区域 -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h2>📈 价格走势</h2>
+                <div class="chart-container">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <h2>💰 资产曲线</h2>
+                <div class="chart-container">
+                    <canvas id="equityChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <h2>📊 交易量分布</h2>
+                <div class="chart-container">
+                    <canvas id="volumeChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <h2>🎯 盈亏分析</h2>
+                <div class="chart-container">
+                    <canvas id="pnlChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 机器人列表 -->
+        <div class="chart-card">
+            <h2>🤖 交易机器人</h2>
+            <div class="bots-grid" id="bots-grid">
+                <div class="bot-card">
+                    <h3>加载中...</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let priceChart, equityChart, volumeChart, pnlChart;
+        const API_BASE = '/api';
+        let token = localStorage.getItem('token') || '';
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            loadDashboardData();
+            loadBots();
+
+            // 自动刷新
+            setInterval(refreshData, 30000); // 30秒刷新一次
+        });
+
+        // 初始化图表
+        function initCharts() {
+            // 价格走势图
+            const priceCtx = document.getElementById('priceChart').getContext('2d');
+            priceChart = new Chart(priceCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '价格',
+                        data: [],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+
+            // 资产曲线图
+            const equityCtx = document.getElementById('equityChart').getContext('2d');
+            equityChart = new Chart(equityCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '资产',
+                        data: [],
+                        borderColor: '#4caf50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+
+            // 交易量分布图
+            const volumeCtx = document.getElementById('volumeChart').getContext('2d');
+            volumeChart = new Chart(volumeCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '交易量',
+                        data: [],
+                        backgroundColor: [
+                            'rgba(102, 126, 234, 0.8)',
+                            'rgba(118, 75, 162, 0.8)',
+                            'rgba(255, 193, 7, 0.8)',
+                            'rgba(76, 175, 80, 0.8)',
+                            'rgba(33, 150, 243, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+
+            // 盈亏分析图
+            const pnlCtx = document.getElementById('pnlChart').getContext('2d');
+            pnlChart = new Chart(pnlCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['盈利交易', '亏损交易', '持平交易'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: [
+                            '#4caf50',
+                            '#f44336',
+                            '#9e9e9e'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // 加载仪表盘数据
+        async function loadDashboardData() {
+            try {
+                // 加载统计数据
+                const statsResponse = await axios.get(`${API_BASE}/trades/stats`);
+                const stats = statsResponse.data;
+
+                // 更新统计卡片
+                document.getElementById('total-trades').textContent = stats.total_trades || 0;
+
+                // 生成模拟数据（实际应该从API获取）
+                const mockData = generateMockData(30);
+
+                // 更新价格图表
+                priceChart.data.labels = mockData.timestamps;
+                priceChart.data.datasets[0].data = mockData.prices;
+                priceChart.update();
+
+                // 更新资产图表
+                equityChart.data.labels = mockData.timestamps;
+                equityChart.data.datasets[0].data = mockData.equity;
+                equityChart.update();
+
+                // 更新交易量图表
+                volumeChart.data.labels = mockData.pairs;
+                volumeChart.data.datasets[0].data = mockData.volumes;
+                volumeChart.update();
+
+                // 更新盈亏图表
+                pnlChart.data.datasets[0].data = [
+                    stats.total_profit || 0,
+                    Math.abs(stats.total_profit * 0.3) || 0,
+                    0
+                ];
+                pnlChart.update();
+
+            } catch (error) {
+                console.error('加载数据失败:', error);
+            }
+        }
+
+        // 加载机器人列表
+        async function loadBots() {
+            try {
+                const response = await axios.get(`${API_BASE}/bots`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const bots = response.data;
+                const botsGrid = document.getElementById('bots-grid');
+
+                if (bots.length === 0) {
+                    botsGrid.innerHTML = '<div class="bot-card"><h3>暂无机器人</h3><div class="info">点击上方按钮创建新机器人</div></div>';
+                    return;
+                }
+
+                botsGrid.innerHTML = bots.map(bot => `
+                    <div class="bot-card">
+                        <h3>${bot.name}</h3>
+                        <div class="info">交易对: ${bot.trading_pair}</div>
+                        <div class="info">策略: ${bot.strategy}</div>
+                        <div class="info">交易所: ${bot.exchange}</div>
+                        <div class="status ${bot.status}">${bot.status === 'running' ? '运行中' : '已停止'}</div>
+                        <div class="actions">
+                            <button class="btn-start" onclick="startBot(${bot.id})">启动</button>
+                            <button class="btn-stop" onclick="stopBot(${bot.id})">停止</button>
+                            <button class="btn-view" onclick="viewBot(${bot.id})">查看</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                // 更新运行中机器人数量
+                const runningBots = bots.filter(b => b.status === 'running').length;
+                document.getElementById('active-bots').textContent = runningBots;
+
+            } catch (error) {
+                console.error('加载机器人失败:', error);
+            }
+        }
+
+        // 生成模拟数据
+        function generateMockData(days) {
+            const timestamps = [];
+            const prices = [];
+            const equity = [];
+            const basePrice = 50000;
+            let currentPrice = basePrice;
+            let currentEquity = 10000;
+
+            for (let i = 0; i < days; i++) {
+                const date = new Date();
+                date.setDate(date.getDate() - (days - i));
+                timestamps.push(date.toLocaleDateString('zh-CN'));
+
+                // 生成随机价格
+                const change = (Math.random() - 0.5) * 0.02;
+                currentPrice = currentPrice * (1 + change);
+                prices.push(currentPrice.toFixed(2));
+
+                // 生成随机资产
+                const equityChange = (Math.random() - 0.5) * 200;
+                currentEquity = Math.max(currentEquity + equityChange, 8000);
+                equity.push(currentEquity.toFixed(2));
+            }
+
+            return {
+                timestamps,
+                prices,
+                equity,
+                pairs: ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'XRP/USDT'],
+                volumes: [1000, 800, 600, 400, 300]
+            };
+        }
+
+        // 刷新数据
+        function refreshData() {
+            loadDashboardData();
+            loadBots();
+        }
+
+        // 运行回测
+        async function runBacktest() {
+            const tradingPair = document.getElementById('trading-pair').value;
+            const timeRange = document.getElementById('time-range').value;
+
+            try {
+                const response = await axios.post(`${API_BASE}/backtest/run`, null, {
+                    params: {
+                        strategy_type: 'grid',
+                        initial_capital: 10000,
+                        use_sample_data: true,
+                        strategy_params: {
+                            grid_levels: 10,
+                            grid_spacing: 0.02
+                        }
+                    },
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const result = response.data;
+
+                alert(`回测完成！\n\n总收益率: ${result.performance.total_return}%\n年化收益率: ${result.performance.annual_return}%\n夏普比率: ${result.performance.sharpe_ratio}\n胜率: ${result.performance.win_rate}%`);
+
+                // 更新图表显示回测结果
+                if (result.equity_curve && result.equity_curve.length > 0) {
+                    equityChart.data.labels = result.equity_curve.map(e => e.timestamp.split('T')[0]);
+                    equityChart.data.datasets[0].data = result.equity_curve.map(e => e.equity);
+                    equityChart.update();
+                }
+
+            } catch (error) {
+                console.error('回测失败:', error);
+                alert('回测失败，请检查配置');
+            }
+        }
+
+        // 启动机器人
+        async function startBot(botId) {
+            try {
+                await axios.post(`${API_BASE}/bots/${botId}/start`, null, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                alert('机器人启动成功！');
+                loadBots();
+            } catch (error) {
+                console.error('启动机器人失败:', error);
+                alert('启动机器人失败');
+            }
+        }
+
+        // 停止机器人
+        async function stopBot(botId) {
+            try {
+                await axios.post(`${API_BASE}/bots/${botId}/stop`, null, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                alert('机器人已停止！');
+                loadBots();
+            } catch (error) {
+                console.error('停止机器人失败:', error);
+                alert('停止机器人失败');
+            }
+        }
+
+        // 查看机器人
+        function viewBot(botId) {
+            alert(`查看机器人 ${botId} 的详细信息`);
+            // 实际应该跳转到机器人详情页面
+        }
+    </script>
+</body>
+</html>

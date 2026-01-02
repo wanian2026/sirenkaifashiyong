@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import engine
 from app.models import Base
-from app.routers import auth, bots, trades
+from app.routers import auth, bots, trades, orders, risk, backtest, notifications, rbac, optimization
 from app.websocket import manager, bot_status_stream, market_data_stream
 from typing import Dict
 import json
@@ -35,6 +35,12 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(bots.router, prefix="/api/bots", tags=["机器人"])
 app.include_router(trades.router, prefix="/api/trades", tags=["交易记录"])
+app.include_router(orders.router, prefix="/api/orders", tags=["订单管理"])
+app.include_router(risk.router, prefix="/api/risk", tags=["风险管理"])
+app.include_router(backtest.router, prefix="/api/backtest", tags=["回测"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["通知"])
+app.include_router(rbac.router, prefix="/api/rbac", tags=["权限管理"])
+app.include_router(optimization.router, prefix="/api/optimize", tags=["系统优化"])
 
 
 @app.get("/")

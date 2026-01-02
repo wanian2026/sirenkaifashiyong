@@ -4,7 +4,7 @@ from typing import List
 from app.database import get_db
 from app.models import User, TradingBot
 from app.auth import get_current_user
-from app.schemas import BotCreate, BotResponse, BotStatus
+from app.schemas import BotCreate, BotResponse, BotStatus, BotUpdate
 from app.strategies import HedgeGridStrategy
 import json
 
@@ -64,6 +64,50 @@ async def get_bot(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="机器人不存在"
         )
+
+    return bot
+
+
+@router.put("/{bot_id}", response_model=BotResponse)
+async def update_bot(
+    bot_id: int,
+    bot_update: BotUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """更新机器人配置"""
+    bot = db.query(TradingBot).filter(
+        TradingBot.id == bot_id,
+        TradingBot.user_id == current_user.id
+    ).first()
+
+    if not bot:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="机器人不存在"
+        )
+
+    # 如果机器人在运行，不允许修改配置
+    if bot.status == "running":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="机器人运行中，无法修改配置，请先停止机器人"
+        )
+
+    # 更新字段
+    if bot_update.name is not None:
+        bot.name = bot_update.name
+    if bot_update.exchange is not None:
+        bot.exchange = bot_update.exchange
+    if bot_update.trading_pair is not None:
+        bot.trading_pair = bot_update.trading_pair
+    if bot_update.strategy is not None:
+        bot.strategy = bot_update.strategy
+    if bot_update.config is not None:
+        bot.config = json.dumps(bot_update.config)
+
+    db.commit()
+    db.refresh(bot)
 
     return bot
 
