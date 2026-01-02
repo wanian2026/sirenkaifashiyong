@@ -306,3 +306,272 @@ async def delete_risk_manager(
         del bot_risk_managers[bot_id]
 
     return {"message": "风险管理器已删除"}
+
+# ==================== 新增：连续亏损停止API ====================
+
+@router.get("/bot/{bot_id}/consecutive-losses")
+async def get_consecutive_losses_info(
+    bot_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    获取连续亏损信息
+
+    返回:
+    - consecutive_losses: 连续亏损次数
+    - consecutive_wins: 连续盈利次数
+    - max_consecutive_losses: 最大允许连续亏损次数
+    - recommendation: 建议
+    """
+    # 验证机器人权限
+    bot = db.query(TradingBot).filter(
+        TradingBot.id == bot_id,
+        TradingBot.user_id == current_user.id
+    ).first()
+
+    if not bot:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="机器人不存在或无权访问"
+        )
+
+    if bot_id not in bot_risk_managers:
+        return {
+            "consecutive_losses": 0,
+            "consecutive_wins": 0,
+            "max_consecutive_losses": 5,
+            "recommendation": "风险管理器未初始化"
+        }
+
+    risk_manager = bot_risk_managers[bot_id]
+
+    return {
+        "consecutive_losses": risk_manager.consecutive_losses,
+        "consecutive_wins": risk_manager.consecutive_wins,
+        "max_consecutive_losses": risk_manager.max_consecutive_losses,
+        "should_stop": risk_manager.consecutive_losses >= risk_manager.max_consecutive_losses,
+        "recommendation": "建议暂停交易" if risk_manager.consecutive_losses >= risk_manager.max_consecutive_losses else "可以继续交易"
+    }
+
+
+# ==================== 新增：波动率保护API ====================
+
+@router.post("/bot/{bot_id}/update-price")
+async def update_price_history(
+    bot_id: int,
+    symbol: str = Query(..., description="交易对，如BTC/USDT"),
+    price: float = Query(..., gt=0, description="当前价格"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    更新价格历史记录（用于波动率计算）
+
+    Args:
+        bot_id: 机器人ID
+        symbol: 交易对
+        price: 当前价格
+    """
+    # 验证机器人权限
+    bot = db.query(TradingBot).filter(
+        TradingBot.id == bot_id,
+        TradingBot.user_id == current_user.id
+    ).first()
+
+    if not bot:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="机器人不存在或无权访问"
+        )
+
+    if bot_id not in bot_risk_managers:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="风险管理器未初始化"
+        )
+
+    risk_manager = bot_risk_managers[bot_id]
+    risk_manager.update_price_history(symbol, price)
+
+    return {"message": "价格已更新", "symbol": symbol, "price": price}
+
+
+@router.get("/bot/{bot_id}/check-volatility")
+async def check_volatility(
+    bot_id: int,
+    symbol: str = Query(..., description="交易对，如BTC/USDT"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    检查市场波动率
+
+    返回:
+    - passed: 是否通过波动率检查
+    - message: 提示信息
+    - current_volatility: 当前波动率
+    - volatility_threshold: 波动率阈值
+    - recommendation: 建议
+    """
+    # 验证机器人权限
+    bot = db.query(TradingBot).filter(
+        TradingBot.id == bot_id,
+        TradingBot.user_id == current_user.id
+    ).first()
+
+    if not bot:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="机器人不存在或无权访问"
+        )
+
+    if bot_id not in bot_risk_managers:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="风险管理器未初始化"
+        )
+
+    risk_manager = bot_risk_managers[bot_id]
+    passed, message, current_volatility = risk_manager.check_volatility(symbol)
+
+    return {
+        "passed": passed,
+        "message": message,
+        "current_volatility": current_volatility * 100,  # 转换为百分比
+        "volatility_threshold": risk_manager.volatility_threshold * 100,  # 转换为百分比
+        "recommendation": "可以交易" if passed else "建议暂停交易，等待市场稳定"
+    }
+
+
+# ==================== 新增：异常行情检测API ====================
+
+@router.post("/bot/{bot_id}/detect-abnormal-market")
+async def detect_abnormal_market(
+    bot_id: int,
+    symbol: str = Query(..., description="交易对，如BTC/USDT"),
+    price: float = Query(..., gt=0, description="当前价格"),
+    volume: Optional[float] = Query(None, description="当前成交量"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    检测异常行情
+
+    返回:
+    - is_abnormal: 是否异常
+    - reason: 异常原因
+    - price_change_percent: 价格变化百分比
+    - recommendation: 建议
+    """
+    # 验证机器人权限
+    bot = db.query(TradingBot).filter(
+        TradingBot.id == bot_id,
+        TradingBot.user_id == current_user.id
+    ).first()
+
+    if not bot:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="机器人不存在或无权访问"
+        )
+
+    if bot_id not in bot_risk_managers:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="风险管理器未初始化"
+        )
+
+    risk_manager = bot_risk_managers[bot_id]
+    result = risk_manager.detect_abnormal_market(symbol, price, volume)
+
+    return result
+
+
+# ==================== 新增：紧急停止API ====================
+
+@router.post("/bot/{bot_id}/emergency-stop")
+async def trigger_emergency_stop(
+    bot_id: int,
+    reason: str = Query("用户手动触发", description="停止原因"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    触发紧急停止
+
+    Args:
+        bot_id: 机器人ID
+        reason: 停止原因
+    """
+    # 验证机器人权限
+    bot = db.query(TradingBot).filter(
+        TradingBot.id == bot_id,
+        TradingBot.user_id == current_user.id
+    ).first()
+
+    if not bot:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="机器人不存在或无权访问"
+        )
+
+    if bot_id not in bot_risk_managers:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="风险管理器未初始化"
+        )
+
+    risk_manager = bot_risk_managers[bot_id]
+    risk_manager.trigger_emergency_stop(reason)
+
+    # 如果机器人正在运行，立即停止
+    if bot.status == "running":
+        bot.status = "stopped"
+        db.commit()
+
+    return {
+        "message": "紧急停止已触发",
+        "bot_id": bot_id,
+        "reason": reason,
+        "emergency_stop_triggered": True
+    }
+
+
+@router.post("/bot/{bot_id}/reset-emergency-stop")
+async def reset_emergency_stop(
+    bot_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    重置紧急停止状态
+
+    允许机器人重新开始交易
+    """
+    # 验证机器人权限
+    bot = db.query(TradingBot).filter(
+        TradingBot.id == bot_id,
+        TradingBot.user_id == current_user.id
+    ).first()
+
+    if not bot:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="机器人不存在或无权访问"
+        )
+
+    if bot_id not in bot_risk_managers:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="风险管理器未初始化"
+        )
+
+    risk_manager = bot_risk_managers[bot_id]
+    risk_manager.reset_emergency_stop()
+
+    return {
+        "message": "紧急停止状态已重置",
+        "bot_id": bot_id,
+        "emergency_stop_triggered": False
+    }

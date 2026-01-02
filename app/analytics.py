@@ -6,7 +6,7 @@
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, desc
+from sqlalchemy import func, and_, desc, Integer, case
 from app.models import TradingBot, Trade, GridOrder
 import logging
 
@@ -461,5 +461,364 @@ class AnalyticsEngine:
         return {
             "period": f"{days}d",
             "heatmap_data": heatmap_data,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    # ==================== 新增：时间分析功能 ====================
+
+    def get_time_based_analysis(
+        self,
+        user_id: int,
+        bot_id: Optional[int] = None,
+        analysis_type: str = "daily"
+    ) -> Dict:
+        """
+        获取基于时间的交易分析（每日/每周/每月）
+
+        Args:
+            user_id: 用户ID
+            bot_id: 机器人ID（可选）
+            analysis_type: 分析类型 (daily, weekly, monthly)
+
+        Returns:
+            时间分析数据
+        """
+        # 根据类型选择分组方式
+        if analysis_type == "daily":
+            # 每日分析
+            return self._get_daily_analysis(user_id, bot_id)
+        elif analysis_type == "weekly":
+            # 每周分析
+            return self._get_weekly_analysis(user_id, bot_id)
+        elif analysis_type == "monthly":
+            # 每月分析
+            return self._get_monthly_analysis(user_id, bot_id)
+        else:
+            raise ValueError(f"不支持的analysis_type: {analysis_type}")
+
+    def _get_daily_analysis(
+        self,
+        user_id: int,
+        bot_id: Optional[int] = None
+    ) -> Dict:
+        """
+        获取每日交易分析
+
+        返回最近30天的每日统计数据
+        """
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=30)
+
+        query = self.db.query(
+            func.date(Trade.created_at).label('date'),
+            func.count(Trade.id).label('trade_count'),
+            func.sum(Trade.profit).label('total_profit'),
+            func.sum(func.cast(func.extract('epoch', Trade.created_at), type_=Integer)).label('timestamp')
+        ).join(
+            TradingBot, Trade.bot_id == TradingBot.id
+        ).filter(
+            and_(
+                TradingBot.user_id == user_id,
+                Trade.created_at >= start_date
+            )
+        ).group_by(func.date(Trade.created_at)).order_by(func.date(Trade.created_at))
+
+        if bot_id:
+            query = query.filter(Trade.bot_id == bot_id)
+
+        results = query.all()
+
+        daily_stats = []
+        total_pnl = 0
+        winning_days = 0
+        losing_days = 0
+
+        for row in results:
+            profit = row.total_profit or 0
+            total_pnl += profit
+
+            if profit > 0:
+                winning_days += 1
+            elif profit < 0:
+                losing_days += 1
+
+            # row.date 可能是字符串或日期对象
+            if isinstance(row.date, str):
+                date_str = row.date
+            else:
+                date_str = row.date.strftime('%Y-%m-%d')
+
+            daily_stats.append({
+                "date": date_str,
+                "trade_count": row.trade_count,
+                "profit": profit,
+                "profit_percent": (profit / abs(profit) * 100) if profit != 0 else 0
+            })
+
+        return {
+            "analysis_type": "daily",
+            "period": "30d",
+            "daily_stats": daily_stats,
+            "summary": {
+                "total_days": len(daily_stats),
+                "winning_days": winning_days,
+                "losing_days": losing_days,
+                "total_pnl": total_pnl,
+                "avg_daily_pnl": total_pnl / len(daily_stats) if daily_stats else 0,
+                "best_day": max(daily_stats, key=lambda x: x['profit']) if daily_stats else None,
+                "worst_day": min(daily_stats, key=lambda x: x['profit']) if daily_stats else None
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+
+    def _get_weekly_analysis(
+        self,
+        user_id: int,
+        bot_id: Optional[int] = None
+    ) -> Dict:
+        """
+        获取每周交易分析
+
+        返回最近12周的每周统计数据
+        """
+        end_date = datetime.now()
+        start_date = end_date - timedelta(weeks=12)
+
+        query = self.db.query(
+            func.extract('year', Trade.created_at).label('year'),
+            func.extract('week', Trade.created_at).label('week'),
+            func.count(Trade.id).label('trade_count'),
+            func.sum(Trade.profit).label('total_profit')
+        ).join(
+            TradingBot, Trade.bot_id == TradingBot.id
+        ).filter(
+            and_(
+                TradingBot.user_id == user_id,
+                Trade.created_at >= start_date
+            )
+        ).group_by(
+            func.extract('year', Trade.created_at),
+            func.extract('week', Trade.created_at)
+        ).order_by(
+            func.extract('year', Trade.created_at),
+            func.extract('week', Trade.created_at)
+        )
+
+        if bot_id:
+            query = query.filter(Trade.bot_id == bot_id)
+
+        results = query.all()
+
+        weekly_stats = []
+        total_pnl = 0
+        winning_weeks = 0
+        losing_weeks = 0
+
+        for row in results:
+            profit = row.total_profit or 0
+            total_pnl += profit
+
+            if profit > 0:
+                winning_weeks += 1
+            elif profit < 0:
+                losing_weeks += 1
+
+            weekly_stats.append({
+                "year": int(row.year),
+                "week": int(row.week),
+                "trade_count": row.trade_count,
+                "profit": profit
+            })
+
+        return {
+            "analysis_type": "weekly",
+            "period": "12w",
+            "weekly_stats": weekly_stats,
+            "summary": {
+                "total_weeks": len(weekly_stats),
+                "winning_weeks": winning_weeks,
+                "losing_weeks": losing_weeks,
+                "total_pnl": total_pnl,
+                "avg_weekly_pnl": total_pnl / len(weekly_stats) if weekly_stats else 0,
+                "best_week": max(weekly_stats, key=lambda x: x['profit']) if weekly_stats else None,
+                "worst_week": min(weekly_stats, key=lambda x: x['profit']) if weekly_stats else None
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+
+    def _get_monthly_analysis(
+        self,
+        user_id: int,
+        bot_id: Optional[int] = None
+    ) -> Dict:
+        """
+        获取每月交易分析
+
+        返回最近12个月的每月统计数据
+        """
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=365)
+
+        query = self.db.query(
+            func.extract('year', Trade.created_at).label('year'),
+            func.extract('month', Trade.created_at).label('month'),
+            func.count(Trade.id).label('trade_count'),
+            func.sum(Trade.profit).label('total_profit')
+        ).join(
+            TradingBot, Trade.bot_id == TradingBot.id
+        ).filter(
+            and_(
+                TradingBot.user_id == user_id,
+                Trade.created_at >= start_date
+            )
+        ).group_by(
+            func.extract('year', Trade.created_at),
+            func.extract('month', Trade.created_at)
+        ).order_by(
+            func.extract('year', Trade.created_at),
+            func.extract('month', Trade.created_at)
+        )
+
+        if bot_id:
+            query = query.filter(Trade.bot_id == bot_id)
+
+        results = query.all()
+
+        monthly_stats = []
+        total_pnl = 0
+        winning_months = 0
+        losing_months = 0
+
+        for row in results:
+            profit = row.total_profit or 0
+            total_pnl += profit
+
+            if profit > 0:
+                winning_months += 1
+            elif profit < 0:
+                losing_months += 1
+
+            monthly_stats.append({
+                "year": int(row.year),
+                "month": int(row.month),
+                "month_name": f"{int(row.year)}-{int(row.month):02d}",
+                "trade_count": row.trade_count,
+                "profit": profit
+            })
+
+        return {
+            "analysis_type": "monthly",
+            "period": "12m",
+            "monthly_stats": monthly_stats,
+            "summary": {
+                "total_months": len(monthly_stats),
+                "winning_months": winning_months,
+                "losing_months": losing_months,
+                "total_pnl": total_pnl,
+                "avg_monthly_pnl": total_pnl / len(monthly_stats) if monthly_stats else 0,
+                "best_month": max(monthly_stats, key=lambda x: x['profit']) if monthly_stats else None,
+                "worst_month": min(monthly_stats, key=lambda x: x['profit']) if monthly_stats else None
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+
+    # ==================== 新增：交易对分析功能 ====================
+
+    def get_pair_analysis(
+        self,
+        user_id: int,
+        bot_id: Optional[int] = None
+    ) -> Dict:
+        """
+        获取交易对分析
+
+        Args:
+            user_id: 用户ID
+            bot_id: 机器人ID（可选）
+
+        Returns:
+            交易对分析数据
+        """
+        query = self.db.query(
+            Trade.trading_pair,
+            func.count(Trade.id).label('trade_count'),
+            func.sum(Trade.profit).label('total_profit'),
+            func.sum(case((Trade.profit > 0, 1), else_=0)).label('winning_trades'),
+            func.sum(case((Trade.profit < 0, 1), else_=0)).label('losing_trades'),
+            func.avg(Trade.profit).label('avg_profit'),
+            func.max(Trade.profit).label('max_profit'),
+            func.min(Trade.profit).label('min_profit')
+        ).join(
+            TradingBot, Trade.bot_id == TradingBot.id
+        ).filter(
+            TradingBot.user_id == user_id
+        ).group_by(Trade.trading_pair).order_by(func.sum(Trade.profit).desc())
+
+        if bot_id:
+            query = query.filter(Trade.bot_id == bot_id)
+
+        results = query.all()
+
+        pair_stats = []
+        best_pair = None
+        worst_pair = None
+        total_pnl = 0
+
+        for row in results:
+            profit = row.total_profit or 0
+            total_pnl += profit
+            win_rate = (row.winning_trades / row.trade_count * 100) if row.trade_count > 0 else 0
+
+            stat = {
+                "trading_pair": row.trading_pair,
+                "trade_count": row.trade_count,
+                "winning_trades": row.winning_trades,
+                "losing_trades": row.losing_trades,
+                "total_profit": profit,
+                "win_rate": win_rate,
+                "avg_profit": float(row.avg_profit or 0),
+                "max_profit": float(row.max_profit or 0),
+                "min_profit": float(row.min_profit or 0),
+                "profit_factor": 0
+            }
+
+            # 计算盈利因子
+            total_profit_val = sum(t.profit for t in self.db.query(Trade).filter(
+                and_(
+                    Trade.trading_pair == row.trading_pair,
+                    Trade.profit > 0
+                )
+            ).all())
+            total_loss_val = abs(sum(t.profit for t in self.db.query(Trade).filter(
+                and_(
+                    Trade.trading_pair == row.trading_pair,
+                    Trade.profit < 0
+                )
+            ).all()))
+
+            if total_loss_val > 0:
+                stat["profit_factor"] = total_profit_val / total_loss_val
+
+            pair_stats.append(stat)
+
+            # 记录最佳/最差交易对
+            if best_pair is None or profit > best_pair["total_profit"]:
+                best_pair = stat
+            if worst_pair is None or profit < worst_pair["total_profit"]:
+                worst_pair = stat
+
+        # 按交易次数排序
+        pair_stats.sort(key=lambda x: x['trade_count'], reverse=True)
+
+        return {
+            "analysis_type": "trading_pair",
+            "pair_stats": pair_stats,
+            "summary": {
+                "total_pairs": len(pair_stats),
+                "total_pnl": total_pnl,
+                "best_pair": best_pair,
+                "worst_pair": worst_pair,
+                "most_traded_pair": max(pair_stats, key=lambda x: x['trade_count']) if pair_stats else None
+            },
             "timestamp": datetime.now().isoformat()
         }

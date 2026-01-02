@@ -317,3 +317,383 @@ async def get_analytics_overview(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"获取分析总览失败: {str(e)}"
         )
+
+# ==================== 新增：时间分析API ====================
+
+@router.get("/time-analysis")
+async def get_time_analysis(
+    analysis_type: str = Query("daily", description="分析类型: daily, weekly, monthly"),
+    bot_id: Optional[int] = Query(None, description="机器人ID，不指定则查询全部"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    获取基于时间的交易分析（每日/每周/每月）
+
+    参数:
+    - analysis_type: 分析类型 (daily=每日, weekly=每周, monthly=每月)
+    - bot_id: 机器人ID（可选）
+
+    返回:
+    - analysis_type: 分析类型
+    - period: 统计周期
+    - daily_stats/weekly_stats/monthly_stats: 时间序列统计数据
+    - summary: 汇总信息
+      - total_days/weeks/months: 总天数/周数/月数
+      - winning_days/weeks/months: 盈利天数/周数/月数
+      - losing_days/weeks/months: 亏损天数/周数/月数
+      - total_pnl: 总盈亏
+      - avg_daily/weekly/monthly_pnl: 平均盈亏
+      - best_day/week/month: 最佳日期/周/月
+      - worst_day/week/month: 最差日期/周/月
+    """
+    try:
+        # 生成缓存键
+        cache_key = f"{CacheKey.user(current_user.id)}:time_analysis:{analysis_type}:{bot_id or 0}"
+
+        # 尝试从缓存获取
+        cached_data = await cache_manager.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"时间分析缓存命中: {cache_key}")
+            return cached_data
+
+        # 验证分析类型
+        if analysis_type not in ["daily", "weekly", "monthly"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"不支持的analysis_type: {analysis_type}，可选值: daily, weekly, monthly"
+            )
+
+        # 缓存未命中，查询数据库
+        analytics = AnalyticsEngine(db)
+        analysis = analytics.get_time_based_analysis(
+            user_id=current_user.id,
+            bot_id=bot_id,
+            analysis_type=analysis_type
+        )
+
+        # 存入缓存（不同的分析类型使用不同的TTL）
+        ttl = CACHE_TTL_TRADE_STATS if analysis_type == "daily" else CACHE_TTL_PROFIT_CURVE
+        await cache_manager.set(cache_key, analysis, ttl)
+        logger.debug(f"时间分析已缓存: {cache_key}")
+
+        return analysis
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取时间分析失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取时间分析失败: {str(e)}"
+        )
+
+
+# ==================== 新增：交易对分析API ====================
+
+@router.get("/pair-analysis")
+async def get_pair_analysis(
+    bot_id: Optional[int] = Query(None, description="机器人ID，不指定则查询全部"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    获取交易对分析
+
+    返回:
+    - analysis_type: 分析类型 (trading_pair)
+    - pair_stats: 各交易对统计数据列表
+      - trading_pair: 交易对
+      - trade_count: 交易次数
+      - winning_trades: 盈利交易数
+      - losing_trades: 亏损交易数
+      - total_profit: 总盈利
+      - win_rate: 胜率
+      - avg_profit: 平均盈利
+      - max_profit: 最大盈利
+      - min_profit: 最大亏损
+      - profit_factor: 盈利因子
+    - summary: 汇总信息
+      - total_pairs: 总交易对数
+      - total_pnl: 总盈亏
+      - best_pair: 最佳交易对
+      - worst_pair: 最差交易对
+      - most_traded_pair: 交易次数最多的交易对
+    """
+    try:
+        # 生成缓存键
+        cache_key = f"{CacheKey.user(current_user.id)}:pair_analysis:{bot_id or 0}"
+
+        # 尝试从缓存获取
+        cached_data = await cache_manager.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"交易对分析缓存命中: {cache_key}")
+            return cached_data
+
+        # 缓存未命中，查询数据库
+        analytics = AnalyticsEngine(db)
+        analysis = analytics.get_pair_analysis(
+            user_id=current_user.id,
+            bot_id=bot_id
+        )
+
+        # 存入缓存
+        await cache_manager.set(cache_key, analysis, CACHE_TTL_TRADE_STATS)
+        logger.debug(f"交易对分析已缓存: {cache_key}")
+
+        return analysis
+    except Exception as e:
+        logger.error(f"获取交易对分析失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取交易对分析失败: {str(e)}"
+        )
+
+# ==================== 新增：报表导出API ====================
+
+from fastapi.responses import FileResponse
+from app.report_export import ReportExporter
+
+
+@router.get("/export/trades")
+async def export_trades(
+    format: str = Query("csv", description="导出格式: csv, excel"),
+    bot_id: Optional[int] = Query(None, description="机器人ID，不指定则导出全部"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    导出交易记录
+
+    支持格式: CSV, Excel
+
+    返回: 文件下载
+    """
+    try:
+        # 验证格式
+        if format not in ['csv', 'excel']:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"不支持的格式: {format}，可选值: csv, excel"
+            )
+
+        # 查询交易记录
+        query = db.query(Trade).join(TradingBot).filter(
+            TradingBot.user_id == current_user.id
+        )
+
+        if bot_id:
+            query = query.filter(Trade.bot_id == bot_id)
+
+        trades = query.order_by(desc(Trade.created_at)).all()
+
+        # 转换为字典列表
+        trades_data = [
+            {
+                'id': trade.id,
+                'bot_id': trade.bot_id,
+                'trading_pair': trade.trading_pair,
+                'side': trade.side,
+                'price': trade.price,
+                'amount': trade.amount,
+                'fee': trade.fee,
+                'profit': trade.profit,
+                'created_at': trade.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            }
+            for trade in trades
+        ]
+
+        # 导出
+        exporter = ReportExporter()
+
+        if format == 'csv':
+            output_file = exporter.export_trades_to_csv(trades_data)
+        else:
+            output_file = exporter.export_trades_to_excel(trades_data)
+
+        return FileResponse(
+            output_file,
+            media_type='application/octet-stream',
+            filename=output_file
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"导出交易记录失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"导出交易记录失败: {str(e)}"
+        )
+
+
+@router.get("/export/analytics")
+async def export_analytics_report(
+    format: str = Query("excel", description="导出格式: excel（仅支持Excel）"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    导出分析报表（多Sheet）
+
+    包含:
+    - 仪表盘概览
+    - 最近交易
+    - 收益曲线
+
+    返回: Excel文件下载
+    """
+    try:
+        # 验证格式
+        if format != 'excel':
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="分析报表仅支持Excel格式"
+            )
+
+        # 获取分析数据
+        analytics = AnalyticsEngine(db)
+
+        analytics_data = {
+            'dashboard': analytics.get_dashboard_summary(current_user.id),
+            'recent_trades': [],
+            'profit_curve': analytics.get_profit_curve(
+                user_id=current_user.id,
+                bot_id=None,
+                period="30d"
+            )
+        }
+
+        # 获取最近交易
+        recent_trades = db.query(Trade).join(TradingBot).filter(
+            TradingBot.user_id == current_user.id
+        ).order_by(desc(Trade.created_at)).limit(50).all()
+
+        analytics_data['recent_trades'] = [
+            {
+                'id': trade.id,
+                'bot_id': trade.bot_id,
+                'trading_pair': trade.trading_pair,
+                'side': trade.side,
+                'price': trade.price,
+                'amount': trade.amount,
+                'fee': trade.fee,
+                'profit': trade.profit,
+                'created_at': trade.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            }
+            for trade in recent_trades
+        ]
+
+        # 导出
+        exporter = ReportExporter()
+        output_file = exporter.export_analytics_to_excel(analytics_data)
+
+        return FileResponse(
+            output_file,
+            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            filename=output_file
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"导出分析报表失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"导出分析报表失败: {str(e)}"
+        )
+
+
+@router.get("/export/time-analysis")
+async def export_time_analysis(
+    analysis_type: str = Query("daily", description="分析类型: daily, weekly, monthly"),
+    bot_id: Optional[int] = Query(None, description="机器人ID，不指定则导出全部"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    导出时间分析报表
+
+    支持格式: Excel（仅支持Excel）
+
+    参数:
+    - analysis_type: 分析类型 (daily, weekly, monthly)
+    - bot_id: 机器人ID（可选）
+
+    返回: Excel文件下载
+    """
+    try:
+        # 验证分析类型
+        if analysis_type not in ["daily", "weekly", "monthly"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"不支持的analysis_type: {analysis_type}，可选值: daily, weekly, monthly"
+            )
+
+        # 获取时间分析数据
+        analytics = AnalyticsEngine(db)
+        analysis_data = analytics.get_time_based_analysis(
+            user_id=current_user.id,
+            bot_id=bot_id,
+            analysis_type=analysis_type
+        )
+
+        # 导出
+        exporter = ReportExporter()
+        output_file = exporter.export_time_analysis_to_excel(analysis_data)
+
+        return FileResponse(
+            output_file,
+            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            filename=output_file
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"导出时间分析失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"导出时间分析失败: {str(e)}"
+        )
+
+
+@router.get("/export/pair-analysis")
+async def export_pair_analysis(
+    bot_id: Optional[int] = Query(None, description="机器人ID，不指定则导出全部"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    导出交易对分析报表
+
+    支持格式: Excel（仅支持Excel）
+
+    参数:
+    - bot_id: 机器人ID（可选）
+
+    返回: Excel文件下载
+    """
+    try:
+        # 获取交易对分析数据
+        analytics = AnalyticsEngine(db)
+        analysis_data = analytics.get_pair_analysis(
+            user_id=current_user.id,
+            bot_id=bot_id
+        )
+
+        # 导出
+        exporter = ReportExporter()
+        output_file = exporter.export_pair_analysis_to_excel(analysis_data)
+
+        return FileResponse(
+            output_file,
+            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            filename=output_file
+        )
+
+    except Exception as e:
+        logger.error(f"导出交易对分析失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"导出交易对分析失败: {str(e)}"
+        )

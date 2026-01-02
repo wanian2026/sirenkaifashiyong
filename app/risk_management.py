@@ -40,7 +40,11 @@ class RiskManager:
         max_single_order: float = 1000,  # 单笔订单最大金额
         stop_loss_threshold: float = 0.05,  # 止损阈值（5%）
         take_profit_threshold: float = 0.10,  # 止盈阈值（10%）
-        enable_auto_stop: bool = True  # 是否启用自动止损
+        enable_auto_stop: bool = True,  # 是否启用自动止损
+        max_consecutive_losses: int = 5,  # 最大连续亏损次数
+        volatility_threshold: float = 0.05,  # 波动率阈值（5%）
+        enable_volatility_protection: bool = True,  # 是否启用波动率保护
+        enable_emergency_stop: bool = True  # 是否启用紧急停止
     ):
         self.max_position = max_position
         self.max_daily_loss = max_daily_loss
@@ -50,6 +54,10 @@ class RiskManager:
         self.stop_loss_threshold = stop_loss_threshold
         self.take_profit_threshold = take_profit_threshold
         self.enable_auto_stop = enable_auto_stop
+        self.max_consecutive_losses = max_consecutive_losses
+        self.volatility_threshold = volatility_threshold
+        self.enable_volatility_protection = enable_volatility_protection
+        self.enable_emergency_stop = enable_emergency_stop
 
         # 运行时状态
         self.current_position = 0
@@ -59,6 +67,21 @@ class RiskManager:
         self.daily_trades = []
         self.last_reset_date = datetime.now().date()
 
+        # 连续亏损跟踪
+        self.consecutive_losses = 0
+        self.consecutive_wins = 0
+
+        # 波动率跟踪
+        self.price_history: List[Dict] = []  # 价格历史记录
+
+        # 紧急停止状态
+        self.emergency_stop_triggered = False
+        self.emergency_stop_reason = ""
+
+        # 异常行情检测
+        self.last_price = None
+        self.price_change_threshold = 0.10  # 价格变化10%视为异常
+
     def reset_daily_limits(self):
         """重置每日限制"""
         today = datetime.now().date()
@@ -67,7 +90,14 @@ class RiskManager:
             self.daily_trades = []
             self.order_count = 0
             self.last_reset_date = today
+            # 不重置连续亏损次数，跨日也需要跟踪
             logger.info("每日风险限制已重置")
+
+    def check_consecutive_losses(self) -> tuple[bool, str]:
+        """检查连续亏损限制"""
+        if self.consecutive_losses >= self.max_consecutive_losses:
+            return False, f"连续亏损次数过多: {self.consecutive_losses} >= {self.max_consecutive_losses}，建议暂停交易"
+        return True, "通过"
 
     def check_position_limit(self, position_value: float) -> tuple[bool, str]:
         """检查持仓限制"""
@@ -118,6 +148,11 @@ class RiskManager:
         """检查所有限制"""
         errors = []
 
+        # 检查紧急停止状态
+        if self.emergency_stop_triggered:
+            errors.append(f"紧急停止已触发: {self.emergency_stop_reason}，禁止新交易")
+            return False, errors
+
         # 检查持仓限制
         passed, msg = self.check_position_limit(position_value)
         if not passed:
@@ -140,6 +175,11 @@ class RiskManager:
 
         # 检查单笔订单限制
         passed, msg = self.check_single_order_limit(order_value)
+        if not passed:
+            errors.append(msg)
+
+        # 检查连续亏损限制
+        passed, msg = self.check_consecutive_losses()
         if not passed:
             errors.append(msg)
 
@@ -193,10 +233,19 @@ class RiskManager:
         logger.info(f"持仓更新: {self.current_position:.2f} (增加 {value:.2f})")
 
     def update_pnl(self, pnl: float):
-        """更新盈亏"""
+        """更新盈亏并跟踪连续亏损"""
         self.daily_pnl += pnl
         self.total_pnl += pnl
-        logger.info(f"盈亏更新: 日={self.daily_pnl:.2f}, 总={self.total_pnl:.2f}")
+
+        # 更新连续亏损/盈利计数
+        if pnl > 0:
+            self.consecutive_losses = 0
+            self.consecutive_wins += 1
+        elif pnl < 0:
+            self.consecutive_wins = 0
+            self.consecutive_losses += 1
+
+        logger.info(f"盈亏更新: 日={self.daily_pnl:.2f}, 总={self.total_pnl:.2f}, 连续亏损={self.consecutive_losses}")
 
     def record_trade(self, trade: Dict):
         """记录交易"""
@@ -208,6 +257,163 @@ class RiskManager:
             'pnl': trade.get('pnl', 0)
         })
         self.order_count += 1
+
+    # ==================== 新增：波动率保护机制 ====================
+
+    def calculate_volatility(self, symbol: str, prices: List[float], period: int = 20) -> float:
+        """
+        计算波动率（标准差/平均价）
+
+        Args:
+            symbol: 交易对
+            prices: 价格列表
+            period: 计算周期
+
+        Returns:
+            波动率（小数，如0.05表示5%）
+        """
+        if len(prices) < 2:
+            return 0.0
+
+        import statistics
+
+        try:
+            # 计算标准差
+            std_dev = statistics.stdev(prices[-period:])
+            # 计算平均价
+            avg_price = statistics.mean(prices[-period:])
+            # 波动率 = 标准差 / 平均价
+            volatility = std_dev / avg_price if avg_price > 0 else 0.0
+            return volatility
+        except Exception as e:
+            logger.warning(f"计算波动率失败: {e}")
+            return 0.0
+
+    def update_price_history(self, symbol: str, price: float, timestamp: datetime = None):
+        """
+        更新价格历史记录
+
+        Args:
+            symbol: 交易对
+            price: 当前价格
+            timestamp: 时间戳（默认为当前时间）
+        """
+        if timestamp is None:
+            timestamp = datetime.now()
+
+        self.price_history.append({
+            'symbol': symbol,
+            'price': price,
+            'timestamp': timestamp.isoformat()
+        })
+
+        # 保留最近100条记录
+        if len(self.price_history) > 100:
+            self.price_history = self.price_history[-100:]
+
+        self.last_price = price
+
+    def check_volatility(self, symbol: str) -> tuple[bool, str, float]:
+        """
+        检查波动率是否过高
+
+        Args:
+            symbol: 交易对
+
+        Returns:
+            (是否通过, 消息, 当前波动率)
+        """
+        if not self.enable_volatility_protection:
+            return True, "波动率保护未启用", 0.0
+
+        # 获取该交易对的价格历史
+        prices = [p['price'] for p in self.price_history if p['symbol'] == symbol]
+
+        if len(prices) < 2:
+            return True, "价格数据不足，无法计算波动率", 0.0
+
+        volatility = self.calculate_volatility(symbol, prices)
+
+        if volatility > self.volatility_threshold:
+            return False, f"市场波动率过高: {volatility*100:.2f}% > {self.volatility_threshold*100:.2f}%，建议暂停交易", volatility
+
+        return True, f"波动率正常: {volatility*100:.2f}%", volatility
+
+    # ==================== 新增：异常行情检测 ====================
+
+    def detect_abnormal_market(self, symbol: str, current_price: float, volume: float = None) -> Dict:
+        """
+        检测异常行情
+
+        Args:
+            symbol: 交易对
+            current_price: 当前价格
+            volume: 当前成交量（可选）
+
+        Returns:
+            检测结果字典
+        """
+        result = {
+            'is_abnormal': False,
+            'reason': '',
+            'price_change_percent': 0.0,
+            'recommendation': '正常交易'
+        }
+
+        if self.last_price is None:
+            self.last_price = current_price
+            return result
+
+        # 计算价格变化百分比
+        price_change = abs(current_price - self.last_price) / self.last_price
+        result['price_change_percent'] = price_change * 100
+
+        # 检测价格异常波动
+        if price_change > self.price_change_threshold:
+            result['is_abnormal'] = True
+            result['reason'] = f"价格异常波动: {price_change*100:.2f}% > {self.price_change_threshold*100:.2f}%"
+            result['recommendation'] = '暂停交易，等待市场稳定'
+
+        # 检测价格暴跌（单次跌幅超过15%）
+        price_drop = (self.last_price - current_price) / self.last_price
+        if price_drop > 0.15:
+            result['is_abnormal'] = True
+            result['reason'] = f"价格暴跌: {price_drop*100:.2f}%"
+            result['recommendation'] = '紧急停止交易，平仓避险'
+
+        self.last_price = current_price
+        return result
+
+    # ==================== 新增：紧急停止机制 ====================
+
+    def trigger_emergency_stop(self, reason: str = "用户手动触发"):
+        """
+        触发紧急停止
+
+        Args:
+            reason: 停止原因
+        """
+        self.emergency_stop_triggered = True
+        self.emergency_stop_reason = reason
+        logger.critical(f"紧急停止已触发! 原因: {reason}")
+
+    def reset_emergency_stop(self):
+        """重置紧急停止状态"""
+        self.emergency_stop_triggered = False
+        self.emergency_stop_reason = ""
+        logger.info("紧急停止状态已重置")
+
+    def check_emergency_stop(self) -> tuple[bool, str]:
+        """
+        检查是否处于紧急停止状态
+
+        Returns:
+            (是否可以交易, 原因)
+        """
+        if self.emergency_stop_triggered:
+            return False, f"紧急停止已触发: {self.emergency_stop_reason}，禁止新交易"
+
+        return True, "正常"
 
     def get_risk_report(self) -> Dict:
         """获取风险报告"""
@@ -223,11 +429,24 @@ class RiskManager:
             'order_count': self.order_count,
             'max_orders': self.max_orders,
             'daily_trades': len(self.daily_trades),
+            # 新增：连续亏损统计
+            'consecutive_losses': self.consecutive_losses,
+            'consecutive_wins': self.consecutive_wins,
+            'max_consecutive_losses': self.max_consecutive_losses,
+            # 新增：紧急停止状态
+            'emergency_stop_triggered': self.emergency_stop_triggered,
+            'emergency_stop_reason': self.emergency_stop_reason,
+            # 新增：波动率保护
+            'volatility_threshold': self.volatility_threshold,
+            'enable_volatility_protection': self.enable_volatility_protection,
+            'price_history_count': len(self.price_history),
             'limits_status': {
                 'position': self.check_position_limit(0)[0],
                 'daily_loss': self.check_daily_loss_limit()[0],
                 'total_loss': self.check_total_loss_limit()[0],
-                'orders': self.check_order_limit()[0]
+                'orders': self.check_order_limit()[0],
+                'consecutive_losses': self.check_consecutive_losses()[0],
+                'emergency_stop': not self.emergency_stop_triggered
             }
         }
 
