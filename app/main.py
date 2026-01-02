@@ -1,0 +1,95 @@
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from app.config import settings
+from app.database import engine
+from app.models import Base
+from app.routers import auth, bots, trades
+from app.websocket import manager, bot_status_stream, market_data_stream
+from typing import Dict
+import json
+
+# 创建数据库表
+Base.metadata.create_all(bind=engine)
+
+# 创建FastAPI应用
+app = FastAPI(
+    title="加密货币交易系统",
+    description="基于LangGraph的加密货币合约交易系统，支持对冲网格策略",
+    version="1.0.0"
+)
+
+# 挂载静态文件
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# 配置CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 注册路由
+app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
+app.include_router(bots.router, prefix="/api/bots", tags=["机器人"])
+app.include_router(trades.router, prefix="/api/trades", tags=["交易记录"])
+
+
+@app.get("/")
+async def root():
+    """根路径"""
+    return {
+        "message": "加密货币交易系统API",
+        "version": "1.0.0",
+        "docs": "/docs"
+    }
+
+
+@app.get("/health")
+async def health_check():
+    """健康检查"""
+    return {"status": "healthy"}
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket端点"""
+    # 验证token
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=1008)
+        return
+
+    # 这里应该验证token获取user_id
+    # 为简化，使用固定user_id=1
+    user_id = 1
+
+    await manager.connect(user_id, websocket)
+    try:
+        # 广播市场数据
+        import random
+        while True:
+            price = 50000 + random.uniform(-100, 100)
+            message = {
+                "type": "market_data",
+                "data": {
+                    "price": price,
+                    "timestamp": __import__('datetime').datetime.now().isoformat()
+                }
+            }
+            await manager.send_personal_message(message, user_id)
+            await __import__('asyncio').sleep(2)
+    except WebSocketDisconnect:
+        manager.disconnect(user_id, websocket)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "app.main:app",
+        host=settings.API_HOST,
+        port=settings.API_PORT,
+        reload=settings.API_RELOAD
+    )
