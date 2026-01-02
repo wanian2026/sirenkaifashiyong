@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极简管理 - 加密货币交易系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f5f5f5;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card {
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3d8a 100%);
+            border: none;
+        }
+        .status-running {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .status-stopped {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .profit-positive {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .profit-negative {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                🚀 加密货币交易系统 v1.0.0
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/static/management.html">完整管理</a>
+                <a class="nav-link" href="#" onclick="logout()">退出</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容 -->
+    <div class="container mt-4">
+        <h2 class="text-center mb-4">📊 系统概览</h2>
+
+        <!-- 快捷操作 -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">快捷操作</div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" onclick="createBot()">➕ 创建机器人</button>
+                            <button class="btn btn-success" onclick="startAllBots()">▶️ 启动所有</button>
+                            <button class="btn btn-danger" onclick="stopAllBots()">⏹️ 停止所有</button>
+                            <button class="btn btn-warning" onclick="testConnection()">🔌 测试连接</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">系统状态</div>
+                    <div class="card-body">
+                        <p><strong>API服务:</strong> <span class="text-success">✓ 运行中</span></p>
+                        <p><strong>数据库:</strong> <span class="text-success">✓ 正常</span></p>
+                        <p><strong>机器人数:</strong> <span id="botCount">-</span></p>
+                        <p><strong>运行中:</strong> <span id="runningCount" class="status-running">-</span></p>
+                        <p><strong>总盈亏:</strong> <span id="totalPnL">-</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">快速访问</div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="/static/bots.html" class="btn btn-outline-primary">🤖 机器人管理</a>
+                            <a href="/static/trading.html" class="btn btn-outline-primary">📈 交易记录</a>
+                            <a href="/static/analytics.html" class="btn btn-outline-primary">📊 数据分析</a>
+                            <a href="/static/settings.html" class="btn btn-outline-primary">⚙️ 系统设置</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 机器人列表 -->
+        <div class="card">
+            <div class="card-header">🤖 机器人列表</div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>名称</th>
+                                <th>策略</th>
+                                <th>状态</th>
+                                <th>盈亏</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="botList">
+                            <tr>
+                                <td colspan="6" class="text-center">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 最近交易 -->
+        <div class="card">
+            <div class="card-header">📋 最近交易</div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>交易对</th>
+                                <th>方向</th>
+                                <th>价格</th>
+                                <th>数量</th>
+                                <th>盈亏</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tradeList">
+                            <tr>
+                                <td colspan="6" class="text-center">暂无交易记录</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提示框 -->
+    <div id="toast" class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+        <div id="toastBody" class="toast align-items-center text-white bg-success border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body" id="toastMessage"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+
+        // 显示提示
+        function showToast(message, type = 'success') {
+            const toastEl = document.getElementById('toastBody');
+            const toastMsg = document.getElementById('toastMessage');
+            toastMsg.textContent = message;
+            toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
+            const toast = new bootstrap.Toast(toastEl);
+            toast.show();
+        }
+
+        // 创建机器人
+        function createBot() {
+            window.location.href = '/static/bots.html?mode=create';
+        }
+
+        // 测试连接
+        async function testConnection() {
+            try {
+                await axios.get(`${API_BASE}/exchange/test`);
+                showToast('连接成功！', 'success');
+            } catch (error) {
+                showToast('连接失败：' + (error.response?.data?.detail || error.message), 'danger');
+            }
+        }
+
+        // 启动所有机器人
+        async function startAllBots() {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.post(`${API_BASE}/bots/start-all`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                showToast('已启动所有机器人');
+                loadBots();
+            } catch (error) {
+                showToast('启动失败：' + (error.response?.data?.detail || error.message), 'danger');
+            }
+        }
+
+        // 停止所有机器人
+        async function stopAllBots() {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.post(`${API_BASE}/bots/stop-all`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                showToast('已停止所有机器人');
+                loadBots();
+            } catch (error) {
+                showToast('停止失败：' + (error.response?.data?.detail || error.message), 'danger');
+            }
+        }
+
+        // 退出
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/static/auth.html';
+        }
+
+        // 加载机器人列表
+        async function loadBots() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await axios.get(`${API_BASE}/bots/`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                const bots = response.data || [];
+
+                // 更新统计
+                document.getElementById('botCount').textContent = bots.length;
+                document.getElementById('runningCount').textContent = bots.filter(b => b.status === 'running').length;
+
+                const totalPnL = bots.reduce((sum, b) => sum + (b.total_pnl || 0), 0);
+                const pnlEl = document.getElementById('totalPnL');
+                pnlEl.textContent = '$' + totalPnL.toFixed(2);
+                pnlEl.className = totalPnL >= 0 ? 'profit-positive' : 'profit-negative';
+
+                // 更新列表
+                const tbody = document.getElementById('botList');
+                if (bots.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center">暂无机器人</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = bots.map(bot => `
+                    <tr>
+                        <td>${bot.id}</td>
+                        <td><strong>${bot.name}</strong></td>
+                        <td>${bot.strategy_type}</td>
+                        <td class="${bot.status === 'running' ? 'status-running' : 'status-stopped'}">
+                            ${bot.status === 'running' ? '● 运行中' : '● 已停止'}
+                        </td>
+                        <td class="${bot.total_pnl >= 0 ? 'profit-positive' : 'profit-negative'}">
+                            $${(bot.total_pnl || 0).toFixed(2)}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="toggleBot(${bot.id})">
+                                ${bot.status === 'running' ? '停止' : '启动'}
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('加载机器人失败:', error);
+                document.getElementById('botList').innerHTML = '<tr><td colspan="6" class="text-center text-danger">加载失败</td></tr>';
+            }
+        }
+
+        // 切换机器人状态
+        async function toggleBot(id) {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.post(`${API_BASE}/bots/${id}/toggle`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                showToast('操作成功');
+                loadBots();
+            } catch (error) {
+                showToast('操作失败：' + (error.response?.data?.detail || error.message), 'danger');
+            }
+        }
+
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', () => {
+            loadBots();
+        });
+    </script>
+</body>
+</html>
