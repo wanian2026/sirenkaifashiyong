@@ -382,6 +382,267 @@ class ExchangeAPI:
             logger.error(f"获取24小时统计数据失败 [{symbol}]: {e}")
             raise
 
+    async def create_limit_order(
+        self,
+        symbol: str,
+        side: str,
+        amount: float,
+        price: float,
+        params: Dict = None
+    ) -> Dict[str, Any]:
+        """
+        创建限价单
+
+        Args:
+            symbol: 交易对
+            side: 方向 (buy/sell)
+            amount: 数量
+            price: 价格
+            params: 额外参数
+
+        Returns:
+            订单信息
+        """
+        try:
+            logger.info(f"创建限价单: {side} {amount} {symbol} @ {price}")
+
+            order = await asyncio.to_thread(
+                self.exchange.create_limit_order,
+                symbol, side, amount, price, params or {}
+            )
+
+            return self._format_order(order)
+        except Exception as e:
+            logger.error(f"创建限价单失败: {e}")
+            raise
+
+    async def create_market_order(
+        self,
+        symbol: str,
+        side: str,
+        amount: float,
+        params: Dict = None
+    ) -> Dict[str, Any]:
+        """
+        创建市价单
+
+        Args:
+            symbol: 交易对
+            side: 方向 (buy/sell)
+            amount: 数量
+            params: 额外参数
+
+        Returns:
+            订单信息
+        """
+        try:
+            logger.info(f"创建市价单: {side} {amount} {symbol}")
+
+            order = await asyncio.to_thread(
+                self.exchange.create_market_order,
+                symbol, side, amount, params or {}
+            )
+
+            return self._format_order(order)
+        except Exception as e:
+            logger.error(f"创建市价单失败: {e}")
+            raise
+
+    async def create_stop_loss_order(
+        self,
+        symbol: str,
+        side: str,
+        amount: float,
+        stop_price: float,
+        limit_price: float = None,
+        params: Dict = None
+    ) -> Dict[str, Any]:
+        """
+        创建止损单
+
+        Args:
+            symbol: 交易对
+            side: 方向 (buy/sell)
+            amount: 数量
+            stop_price: 触发价格
+            limit_price: 限价价格（可选，用于止损限价单）
+            params: 额外参数
+
+        Returns:
+            订单信息
+        """
+        try:
+            logger.info(f"创建止损单: {side} {amount} {symbol} @ {stop_price}")
+
+            # 不同交易所的止损单参数不同
+            if self.exchange_id == 'binance':
+                order_params = {
+                    'stopPrice': stop_price,
+                    'type': 'STOP_LOSS_LIMIT' if limit_price else 'STOP_LOSS'
+                }
+                if limit_price:
+                    order_params['price'] = limit_price
+            elif self.exchange_id == 'okx':
+                order_params = {
+                    'stopLoss': {
+                        'triggerPrice': stop_price
+                    }
+                }
+                if limit_price:
+                    order_params['ordType'] = 'conditional'
+            else:
+                # 默认实现
+                order_params = {'stopPrice': stop_price}
+                if limit_price:
+                    order_params['price'] = limit_price
+
+            if params:
+                order_params.update(params)
+
+            order = await asyncio.to_thread(
+                self.exchange.create_order,
+                symbol, 'limit', side, amount, limit_price or stop_price, order_params
+            )
+
+            return self._format_order(order)
+        except Exception as e:
+            logger.error(f"创建止损单失败: {e}")
+            raise
+
+    async def create_take_profit_order(
+        self,
+        symbol: str,
+        side: str,
+        amount: float,
+        take_profit_price: float,
+        params: Dict = None
+    ) -> Dict[str, Any]:
+        """
+        创建止盈单
+
+        Args:
+            symbol: 交易对
+            side: 方向 (buy/sell)
+            amount: 数量
+            take_profit_price: 止盈价格
+            params: 额外参数
+
+        Returns:
+            订单信息
+        """
+        try:
+            logger.info(f"创建止盈单: {side} {amount} {symbol} @ {take_profit_price}")
+
+            # 止盈单本质上是限价单
+            order = await asyncio.to_thread(
+                self.exchange.create_limit_order,
+                symbol, side, amount, take_profit_price, params or {}
+            )
+
+            return self._format_order(order)
+        except Exception as e:
+            logger.error(f"创建止盈单失败: {e}")
+            raise
+
+    async def cancel_order(self, order_id: str, symbol: str) -> Dict[str, Any]:
+        """
+        取消订单
+
+        Args:
+            order_id: 订单ID
+            symbol: 交易对
+
+        Returns:
+            取消结果
+        """
+        try:
+            logger.info(f"取消订单: {order_id}")
+
+            result = await asyncio.to_thread(
+                self.exchange.cancel_order,
+                order_id, symbol
+            )
+
+            return {
+                "success": True,
+                "order_id": order_id,
+                "symbol": symbol
+            }
+        except Exception as e:
+            logger.error(f"取消订单失败: {e}")
+            raise
+
+    async def get_order(self, order_id: str, symbol: str) -> Dict[str, Any]:
+        """
+        获取订单状态
+
+        Args:
+            order_id: 订单ID
+            symbol: 交易对
+
+        Returns:
+            订单信息
+        """
+        try:
+            order = await asyncio.to_thread(
+                self.exchange.fetch_order,
+                order_id, symbol
+            )
+
+            return self._format_order(order)
+        except Exception as e:
+            logger.error(f"获取订单失败: {e}")
+            raise
+
+    async def get_open_orders(self, symbol: str = None) -> List[Dict[str, Any]]:
+        """
+        获取未完成订单
+
+        Args:
+            symbol: 交易对（可选）
+
+        Returns:
+            未完成订单列表
+        """
+        try:
+            orders = await asyncio.to_thread(
+                self.exchange.fetch_open_orders,
+                symbol
+            )
+
+            return [self._format_order(order) for order in orders]
+        except Exception as e:
+            logger.error(f"获取未完成订单失败: {e}")
+            raise
+
+    def _format_order(self, order: Dict) -> Dict[str, Any]:
+        """
+        格式化订单数据
+
+        Args:
+            order: 原始订单数据
+
+        Returns:
+            格式化后的订单数据
+        """
+        return {
+            "id": str(order.get('id')),
+            "symbol": order.get('symbol'),
+            "type": order.get('type'),
+            "side": order.get('side'),
+            "price": order.get('price'),
+            "amount": order.get('amount'),
+            "filled": order.get('filled', 0),
+            "remaining": order.get('remaining', 0),
+            "cost": order.get('cost', 0),
+            "status": order.get('status'),
+            "timestamp": order.get('timestamp'),
+            "datetime": order.get('datetime'),
+            "fee": order.get('fee'),
+            "trades": order.get('trades', []),
+            "info": order.get('info', {})
+        }
+
     async def test_connection(self) -> Dict[str, Any]:
         """
         测试交易所连接

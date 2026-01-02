@@ -43,28 +43,59 @@ class OrderType(str):
 
 
 class OrderCreate(BaseModel):
+    """创建订单请求"""
     bot_id: int
     order_type: Literal['buy', 'sell']
-    price: float
+    order_category: Literal['limit', 'market', 'stop_loss', 'take_profit'] = 'limit'
+    price: Optional[float] = None  # 市价单不需要价格
     amount: float
     level: Optional[int] = None
+    trading_pair: Optional[str] = None  # 交易对，如果不提供则从机器人获取
+    stop_price: Optional[float] = None  # 触发价格（止损/止盈单）
+    stop_loss_price: Optional[float] = None  # 止损价格
+    take_profit_price: Optional[float] = None  # 止盈价格
+    max_retry: Optional[int] = 3  # 最大重试次数
 
 
 class OrderResponse(BaseModel):
+    """订单响应"""
     id: int
     bot_id: int
     level: int
-    order_type: str
+    order_type: str  # buy or sell
+    order_category: str  # limit, market, stop_loss, take_profit
     price: float
     amount: float
     status: str
     order_id: Optional[str]
+    exchange_order_id: Optional[str]
+    side: str  # buy or sell
+    trading_pair: str
     filled_amount: float
+    filled_price: Optional[float]
+    fee: float
+    stop_price: Optional[float]
+    stop_loss_price: Optional[float]
+    take_profit_price: Optional[float]
+    retry_count: int
+    max_retry: int
+    error_message: Optional[str]
     created_at: datetime
+    updated_at: Optional[datetime]
     filled_at: Optional[datetime]
 
     class Config:
         from_attributes = True
+
+
+class OrderUpdate(BaseModel):
+    """更新订单请求"""
+    price: Optional[float] = None
+    amount: Optional[float] = None
+    stop_price: Optional[float] = None
+    stop_loss_price: Optional[float] = None
+    take_profit_price: Optional[float] = None
+    max_retry: Optional[int] = None
 
 
 class TradeFilter(BaseModel):

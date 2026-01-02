@@ -7,19 +7,18 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from fastapi.testclient import TestClient
-from app.database import Base, get_db
+from app.database import Base, get_db, SessionLocal
 from app.main import app
 from app.models import User
 from app.auth import get_password_hash
 
-
 # 测试数据库（内存数据库）
 TEST_DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(
+test_engine = create_engine(
     TEST_DATABASE_URL,
     connect_args={"check_same_thread": False}
 )
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 
 @pytest.fixture(scope="function")
@@ -30,7 +29,7 @@ def db():
     每个测试函数都会获得一个独立的数据库会话
     """
     # 创建所有表
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=test_engine)
 
     # 创建会话
     session = TestingSessionLocal()
@@ -40,7 +39,7 @@ def db():
     finally:
         session.close()
         # 清理：删除所有表
-        Base.metadata.drop_all(bind=engine)
+        Base.metadata.drop_all(bind=test_engine)
 
 
 @pytest.fixture(scope="function")
