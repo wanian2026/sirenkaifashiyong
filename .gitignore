@@ -69,3 +69,21 @@ verify_push.sh
 
 # 临时修复文档
 FIX_*.md
+
+# 临时测试文件
+test_*.pyc
+*_manual.py
+
+# 临时备份文件
+*.backup
+*.bak
+
+# 开发辅助脚本
+pre_push_check.sh
+push_safely.sh
+push_to_github.sh
+quick_fix.sh
+verify_push.sh
+
+# 临时修复文档
+FIX_*.md
