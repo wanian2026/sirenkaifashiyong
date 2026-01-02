@@ -93,12 +93,14 @@ pip install -r requirements.txt
 ```bash
 # 单独安装每个包
 pip install fastapi uvicorn langgraph langchain
-pip install ccxt sqlalchemy alembic psycopg2-binary
+pip install ccxt sqlalchemy alembic
 pip install python-jose passlib bcrypt
 pip install python-multipart websockets
 pip install pydantic pydantic-settings
 pip install python-dotenv aiohttp pandas numpy jinja2
 ```
+
+**注意**: 本项目默认使用SQLite数据库（Mac内置），无需安装PostgreSQL相关依赖。如需使用PostgreSQL，请参考文档末尾的"配置PostgreSQL（可选）"章节。
 
 ---
 
