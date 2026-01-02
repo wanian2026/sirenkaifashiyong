@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import List, Dict
+from typing import List, Dict, Any
 from app.database import get_db
 from app.models import User, TradingBot
 from app.auth import get_current_user
@@ -441,3 +441,311 @@ async def delete_bot(
     db.commit()
 
     return {"message": "机器人已删除", "bot_id": bot_id}
+
+
+# ========== 批量操作 ==========
+
+@router.post("/batch/start")
+async def batch_start_bots(
+    bot_ids: List[int],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """批量启动机器人"""
+    results = {
+        "success": [],
+        "failed": []
+    }
+
+    for bot_id in bot_ids:
+        try:
+            bot = db.query(TradingBot).filter(
+                TradingBot.id == bot_id,
+                TradingBot.user_id == current_user.id
+            ).first()
+
+            if not bot:
+                results["failed"].append({
+                    "bot_id": bot_id,
+                    "reason": "机器人不存在"
+                })
+                continue
+
+            if bot_id in running_bots:
+                results["failed"].append({
+                    "bot_id": bot_id,
+                    "reason": "机器人已在运行中"
+                })
+                continue
+
+            # 创建策略实例
+            config = json.loads(bot.config) if bot.config else {}
+            strategy = HedgeGridStrategy(
+                trading_pair=bot.trading_pair,
+                grid_levels=config.get('grid_levels', 10),
+                grid_spacing=config.get('grid_spacing', 0.02),
+                investment_amount=config.get('investment_amount', 1000),
+                dynamic_grid=config.get('dynamic_grid', False),
+                batch_build=config.get('batch_build', False),
+                batch_count=config.get('batch_count', 3)
+            )
+
+            # 初始化网格
+            await strategy.initialize_grid()
+
+            # 初始化风险管理器
+            risk_manager = RiskManager(
+                max_position=config.get('max_position', 10000),
+                max_daily_loss=config.get('max_daily_loss', 1000),
+                max_total_loss=config.get('max_total_loss', 5000),
+                max_orders=config.get('max_orders', 50),
+                max_single_order=config.get('max_single_order', 1000),
+                stop_loss_threshold=config.get('stop_loss_threshold', 0.05),
+                take_profit_threshold=config.get('take_profit_threshold', 0.10),
+                enable_auto_stop=config.get('enable_auto_stop', True)
+            )
+
+            # 存储运行中的机器人和风险管理器
+            running_bots[bot_id] = strategy
+            bot_risk_managers[bot_id] = risk_manager
+
+            # 更新数据库状态
+            bot.status = "running"
+            db.commit()
+
+            results["success"].append(bot_id)
+            logger.info(f"批量启动: 机器人 {bot_id} 已启动")
+
+        except Exception as e:
+            results["failed"].append({
+                "bot_id": bot_id,
+                "reason": str(e)
+            })
+            logger.error(f"批量启动失败: 机器人 {bot_id}, 错误: {e}")
+
+    return {
+        "message": f"批量启动完成，成功: {len(results['success'])}，失败: {len(results['failed'])}",
+        "results": results
+    }
+
+
+@router.post("/batch/stop")
+async def batch_stop_bots(
+    bot_ids: List[int],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """批量停止机器人"""
+    results = {
+        "success": [],
+        "failed": []
+    }
+
+    for bot_id in bot_ids:
+        try:
+            bot = db.query(TradingBot).filter(
+                TradingBot.id == bot_id,
+                TradingBot.user_id == current_user.id
+            ).first()
+
+            if not bot:
+                results["failed"].append({
+                    "bot_id": bot_id,
+                    "reason": "机器人不存在"
+                })
+                continue
+
+            if bot_id not in running_bots:
+                results["failed"].append({
+                    "bot_id": bot_id,
+                    "reason": "机器人未运行"
+                })
+                continue
+
+            # 停止策略
+            running_bots[bot_id].stop()
+
+            # 获取最终风险报告
+            if bot_id in bot_risk_managers:
+                del bot_risk_managers[bot_id]
+
+            del running_bots[bot_id]
+
+            # 更新数据库状态
+            bot.status = "stopped"
+            db.commit()
+
+            results["success"].append(bot_id)
+            logger.info(f"批量停止: 机器人 {bot_id} 已停止")
+
+        except Exception as e:
+            results["failed"].append({
+                "bot_id": bot_id,
+                "reason": str(e)
+            })
+            logger.error(f"批量停止失败: 机器人 {bot_id}, 错误: {e}")
+
+    return {
+        "message": f"批量停止完成，成功: {len(results['success'])}，失败: {len(results['failed'])}",
+        "results": results
+    }
+
+
+@router.delete("/batch")
+async def batch_delete_bots(
+    bot_ids: List[int],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """批量删除机器人"""
+    results = {
+        "success": [],
+        "failed": []
+    }
+
+    for bot_id in bot_ids:
+        try:
+            bot = db.query(TradingBot).filter(
+                TradingBot.id == bot_id,
+                TradingBot.user_id == current_user.id
+            ).first()
+
+            if not bot:
+                results["failed"].append({
+                    "bot_id": bot_id,
+                    "reason": "机器人不存在"
+                })
+                continue
+
+            # 如果机器人在运行，先停止
+            if bot_id in running_bots:
+                running_bots[bot_id].stop()
+                if bot_id in bot_risk_managers:
+                    del bot_risk_managers[bot_id]
+                del running_bots[bot_id]
+
+            db.delete(bot)
+            db.commit()
+
+            results["success"].append(bot_id)
+            logger.info(f"批量删除: 机器人 {bot_id} 已删除")
+
+        except Exception as e:
+            results["failed"].append({
+                "bot_id": bot_id,
+                "reason": str(e)
+            })
+            logger.error(f"批量删除失败: 机器人 {bot_id}, 错误: {e}")
+
+    # 提交所有更改
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"批量删除提交失败: {e}")
+
+    return {
+        "message": f"批量删除完成，成功: {len(results['success'])}，失败: {len(results['failed'])}",
+        "results": results
+    }
+
+
+@router.put("/batch/config")
+async def batch_update_config(
+    bot_ids: List[int],
+    config_update: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """批量更新机器人配置"""
+    results = {
+        "success": [],
+        "failed": []
+    }
+
+    for bot_id in bot_ids:
+        try:
+            bot = db.query(TradingBot).filter(
+                TradingBot.id == bot_id,
+                TradingBot.user_id == current_user.id
+            ).first()
+
+            if not bot:
+                results["failed"].append({
+                    "bot_id": bot_id,
+                    "reason": "机器人不存在"
+                })
+                continue
+
+            # 如果机器人在运行，不允许修改配置
+            if bot.status == "running":
+                results["failed"].append({
+                    "bot_id": bot_id,
+                    "reason": "机器人运行中，无法修改配置"
+                })
+                continue
+
+            # 更新配置
+            current_config = json.loads(bot.config) if bot.config else {}
+            current_config.update(config_update)
+            bot.config = json.dumps(current_config)
+
+            db.commit()
+
+            results["success"].append(bot_id)
+            logger.info(f"批量配置: 机器人 {bot_id} 配置已更新")
+
+        except Exception as e:
+            results["failed"].append({
+                "bot_id": bot_id,
+                "reason": str(e)
+            })
+            logger.error(f"批量配置失败: 机器人 {bot_id}, 错误: {e}")
+
+    return {
+        "message": f"批量配置完成，成功: {len(results['success'])}，失败: {len(results['failed'])}",
+        "results": results
+    }
+
+
+# ========== 机器人克隆 ==========
+
+@router.post("/{bot_id}/clone", response_model=BotResponse)
+async def clone_bot(
+    bot_id: int,
+    new_name: str = Query(..., description="新机器人名称"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """克隆机器人"""
+    # 获取原机器人
+    original_bot = db.query(TradingBot).filter(
+        TradingBot.id == bot_id,
+        TradingBot.user_id == current_user.id
+    ).first()
+
+    if not original_bot:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="原机器人不存在"
+        )
+
+    # 创建新机器人
+    new_bot = TradingBot(
+        name=new_name,
+        exchange=original_bot.exchange,
+        trading_pair=original_bot.trading_pair,
+        strategy=original_bot.strategy,
+        config=original_bot.config,  # 复制配置
+        user_id=current_user.id,
+        status="stopped"  # 新机器人默认为停止状态
+    )
+
+    db.add(new_bot)
+    db.commit()
+    db.refresh(new_bot)
+
+    logger.info(f"机器人克隆成功: {bot_id} -> {new_bot.id}")
+
+    return new_bot
+
