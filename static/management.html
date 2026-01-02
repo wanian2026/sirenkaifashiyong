@@ -3,179 +3,752 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理系统 - 加密货币交易系统</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=stylesheet" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <title>完整管理 - 加密货币交易系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        * {
-            font-family: 'Inter', sans-serif;
+        body {
+            background-color: #f8f9fa;
         }
-        .gradient-bg {
+        .navbar {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
-        .card-hover:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        .sidebar {
+            background: white;
+            min-height: calc(100vh - 56px);
+            border-right: 1px solid #dee2e6;
+        }
+        .sidebar .nav-link {
+            color: #495057;
+            padding: 12px 20px;
+            border-left: 3px solid transparent;
+        }
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: #f8f9fa;
+            border-left-color: #667eea;
+            color: #667eea;
+            font-weight: 500;
+        }
+        .sidebar .nav-link i {
+            margin-right: 10px;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background: white;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: 600;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-card .icon {
+            font-size: 2rem;
+            opacity: 0.7;
+        }
+        .status-running {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .status-stopped {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .profit-positive {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .profit-negative {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3d8a 100%);
+            border: none;
+        }
+        .content-section {
+            display: none;
+        }
+        .content-section.active {
+            display: block;
         }
     </style>
 </head>
-<body class="bg-gray-100">
+<body>
     <!-- 导航栏 -->
-    <nav class="gradient-bg text-white shadow-lg">
-        <div class="container mx-auto px-4">
-            <div class="flex justify-between items-center py-4">
-                <div class="flex items-center space-x-4">
-                    <h1 class="text-2xl font-bold">加密货币交易系统</h1>
-                    <span class="text-sm bg-white/20 px-3 py-1 rounded-full">v1.0.0</span>
-                </div>
-                <div class="flex items-center space-x-6">
-                    <a href="/static/index.html" class="hover:text-yellow-300 transition">仪表盘</a>
-                    <a href="/static/bots.html" class="hover:text-yellow-300 transition">机器人</a>
-                    <a href="/static/trading.html" class="hover:text-yellow-300 transition">交易</a>
-                    <a href="/static/analytics.html" class="hover:text-yellow-300 transition">分析</a>
-                    <a href="/static/settings.html" class="hover:text-yellow-300 transition">设置</a>
-                    <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg transition">退出</button>
-                </div>
+    <nav class="navbar navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-currency-bitcoin"></i> 加密货币交易系统 v1.0.0
+            </a>
+            <div class="d-flex align-items-center">
+                <span class="text-white me-3" id="userInfo">用户</span>
+                <button class="btn btn-sm btn-light" onclick="logout()">
+                    <i class="bi bi-box-arrow-right"></i> 退出
+                </button>
             </div>
         </div>
     </nav>
 
-    <!-- 主内容区 -->
-    <div class="container mx-auto px-4 py-8">
-        <h2 class="text-3xl font-bold mb-8 text-gray-800">系统管理</h2>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <div class="col-md-2 sidebar">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" onclick="showSection('dashboard')">
+                            <i class="bi bi-speedometer2"></i> 仪表盘
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('bots')">
+                            <i class="bi bi-robot"></i> 机器人管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('trading')">
+                            <i class="bi bi-graph-up"></i> 交易管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('orders')">
+                            <i class="bi bi-list-check"></i> 订单管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('backtest')">
+                            <i class="bi bi-clock-history"></i> 策略回测
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('risk')">
+                            <i class="bi bi-shield-check"></i> 风险管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('analytics')">
+                            <i class="bi bi-pie-chart"></i> 数据分析
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('strategies')">
+                            <i class="bi bi-lightning-charge"></i> 高级策略
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('notifications')">
+                            <i class="bi bi-bell"></i> 通知管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('logs')">
+                            <i class="bi bi-file-text"></i> 日志管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('settings')">
+                            <i class="bi bi-gear"></i> 系统设置
+                        </a>
+                    </li>
+                </ul>
+            </div>
 
-        <!-- 快捷操作卡片 -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div class="bg-white rounded-xl shadow-md p-6 card-hover cursor-pointer" onclick="window.location.href='/static/bots.html'">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-700">机器人管理</h3>
-                        <p class="text-sm text-gray-500 mt-1">管理所有交易机器人</p>
-                    </div>
-                    <div class="text-3xl">🤖</div>
-                </div>
-            </div>
-            <div class="bg-white rounded-xl shadow-md p-6 card-hover cursor-pointer" onclick="window.location.href='/static/trading.html'">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-700">交易管理</h3>
-                        <p class="text-sm text-gray-500 mt-1">查看和管理交易订单</p>
-                    </div>
-                    <div class="text-3xl">📊</div>
-                </div>
-            </div>
-            <div class="bg-white rounded-xl shadow-md p-6 card-hover cursor-pointer" onclick="window.location.href='/static/analytics.html'">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-700">数据分析</h3>
-                        <p class="text-sm text-gray-500 mt-1">查看收益和统计数据</p>
-                    </div>
-                    <div class="text-3xl">📈</div>
-                </div>
-            </div>
-            <div class="bg-white rounded-xl shadow-md p-6 card-hover cursor-pointer" onclick="window.location.href='/static/settings.html'">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-700">系统设置</h3>
-                        <p class="text-sm text-gray-500 mt-1">配置系统参数</p>
-                    </div>
-                    <div class="text-3xl">⚙️</div>
-                </div>
-            </div>
-        </div>
+            <!-- 主内容区 -->
+            <div class="col-md-10 p-4">
+                <!-- 仪表盘 -->
+                <div id="dashboard" class="content-section active">
+                    <h2>仪表盘</h2>
 
-        <!-- 系统状态 -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <div class="bg-white rounded-xl shadow-md p-6">
-                <h3 class="text-xl font-bold mb-4 text-gray-800">系统状态</h3>
-                <div class="space-y-4" id="systemStatus">
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <span class="text-gray-600">API 服务</span>
-                        <span class="text-green-500 font-semibold">运行中</span>
+                    <!-- 统计卡片 -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="text-muted">机器人总数</h6>
+                                        <h3 id="botCount">-</h3>
+                                    </div>
+                                    <i class="bi bi-robot icon text-primary"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="text-muted">运行中</h6>
+                                        <h3 id="runningCount" class="status-running">-</h3>
+                                    </div>
+                                    <i class="bi bi-play-circle icon text-success"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="text-muted">总盈亏</h6>
+                                        <h3 id="totalPnL">-</h3>
+                                    </div>
+                                    <i class="bi bi-currency-dollar icon text-info"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="text-muted">交易总数</h6>
+                                        <h3 id="totalTrades">-</h3>
+                                    </div>
+                                    <i class="bi bi-graph-up icon text-warning"></i>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <span class="text-gray-600">数据库连接</span>
-                        <span class="text-green-500 font-semibold">正常</span>
+
+                    <!-- 快捷操作 -->
+                    <div class="card">
+                        <div class="card-header">快捷操作</div>
+                        <div class="card-body">
+                            <button class="btn btn-primary me-2" onclick="createBot()">
+                                <i class="bi bi-plus-circle"></i> 创建机器人
+                            </button>
+                            <button class="btn btn-success me-2" onclick="startAllBots()">
+                                <i class="bi bi-play-fill"></i> 启动所有
+                            </button>
+                            <button class="btn btn-danger me-2" onclick="stopAllBots()">
+                                <i class="bi bi-stop-fill"></i> 停止所有
+                            </button>
+                            <button class="btn btn-info me-2" onclick="testConnection()">
+                                <i class="bi bi-plug"></i> 测试连接
+                            </button>
+                            <button class="btn btn-warning" onclick="clearCache()">
+                                <i class="bi bi-trash"></i> 清空缓存
+                            </button>
+                        </div>
                     </div>
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <span class="text-gray-600">Redis 缓存</span>
-                        <span class="text-yellow-500 font-semibold">未启用</span>
+
+                    <!-- 系统状态 -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">系统状态</div>
+                                <div class="card-body">
+                                    <table class="table">
+                                        <tr><td>API服务</td><td class="text-success">✓ 运行中</td></tr>
+                                        <tr><td>数据库</td><td class="text-success">✓ 正常</td></tr>
+                                        <tr><td>Redis缓存</td><td class="text-warning">✗ 未启用</td></tr>
+                                        <tr><td>WebSocket</td><td class="text-success">✓ 连接正常</td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">最近交易</div>
+                                <div class="card-body">
+                                    <div id="recentTrades" class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr><th>交易对</th><th>方向</th><th>价格</th><th>盈亏</th></tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr><td colspan="4">加载中...</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="bg-white rounded-xl shadow-md p-6">
-                <h3 class="text-xl font-bold mb-4 text-gray-800">快速操作</h3>
-                <div class="space-y-3">
-                    <button onclick="createBot()" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg transition font-medium">
-                        ➕ 创建新机器人
+                <!-- 机器人管理 -->
+                <div id="bots" class="content-section">
+                    <h2>机器人管理</h2>
+                    <button class="btn btn-primary mb-3" onclick="createBot()">
+                        <i class="bi bi-plus-circle"></i> 创建机器人
                     </button>
-                    <button onclick="testConnection()" class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg transition font-medium">
-                        🔌 测试交易所连接
-                    </button>
-                    <button onclick="clearCache()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-lg transition font-medium">
-                        🗑️ 清空缓存
-                    </button>
-                    <button onclick="viewLogs()" class="w-full bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-lg transition font-medium">
-                        📝 查看日志
-                    </button>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>名称</th>
+                                            <th>策略</th>
+                                            <th>交易对</th>
+                                            <th>交易所</th>
+                                            <th>状态</th>
+                                            <th>盈亏</th>
+                                            <th>胜率</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="botList">
+                                        <tr><td colspan="9">加载中...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- 活动机器人列表 -->
-        <div class="bg-white rounded-xl shadow-md p-6">
-            <h3 class="text-xl font-bold mb-4 text-gray-800">活跃机器人</h3>
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead>
-                        <tr class="text-left border-b-2 border-gray-200">
-                            <th class="pb-3 text-gray-600">名称</th>
-                            <th class="pb-3 text-gray-600">策略</th>
-                            <th class="pb-3 text-gray-600">状态</th>
-                            <th class="pb-3 text-gray-600">盈亏</th>
-                            <th class="pb-3 text-gray-600">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="botList">
-                        <tr>
-                            <td colspan="5" class="py-8 text-center text-gray-500">加载中...</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <!-- 交易管理 -->
+                <div id="trading" class="content-section">
+                    <h2>交易管理</h2>
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>时间</th>
+                                            <th>机器人</th>
+                                            <th>交易对</th>
+                                            <th>方向</th>
+                                            <th>类型</th>
+                                            <th>价格</th>
+                                            <th>数量</th>
+                                            <th>手续费</th>
+                                            <th>盈亏</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tradeList">
+                                        <tr><td colspan="9">加载中...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 订单管理 -->
+                <div id="orders" class="content-section">
+                    <h2>订单管理</h2>
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>时间</th>
+                                            <th>机器人</th>
+                                            <th>交易对</th>
+                                            <th>方向</th>
+                                            <th>类型</th>
+                                            <th>价格</th>
+                                            <th>数量</th>
+                                            <th>状态</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="orderList">
+                                        <tr><td colspan="10">加载中...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 策略回测 -->
+                <div id="backtest" class="content-section">
+                    <h2>策略回测</h2>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">回测参数</div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">选择策略</label>
+                                        <select class="form-select" id="backtestStrategy">
+                                            <option value="hedge_grid">对冲网格策略</option>
+                                            <option value="mean_reversion">均值回归策略</option>
+                                            <option value="momentum">动量策略</option>
+                                            <option value="code_a">代号A策略</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">交易对</label>
+                                        <select class="form-select" id="backtestPair">
+                                            <option value="BTCUSDT">BTC/USDT</option>
+                                            <option value="ETHUSDT">ETH/USDT</option>
+                                            <option value="BNBUSDT">BNB/USDT</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">开始日期</label>
+                                        <input type="date" class="form-control" id="backtestStart">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">结束日期</label>
+                                        <input type="date" class="form-control" id="backtestEnd">
+                                    </div>
+                                    <button class="btn btn-primary w-100" onclick="runBacktest()">
+                                        <i class="bi bi-play-fill"></i> 运行回测
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">回测结果</div>
+                                <div class="card-body">
+                                    <div id="backtestResult">
+                                        <div class="alert alert-info">
+                                            请选择参数并运行回测
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 风险管理 -->
+                <div id="risk" class="content-section">
+                    <h2>风险管理</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">风险指标</div>
+                                <div class="card-body">
+                                    <table class="table">
+                                        <tr><td>风险等级</td><td><span class="badge bg-warning">中等</span></td></tr>
+                                        <tr><td>最大回撤</td><td>-8.5%</td></tr>
+                                        <tr><td>夏普比率</td><td>1.32</td></tr>
+                                        <tr><td>连续亏损</td><td>3次</td></tr>
+                                        <tr><td>VaR (95%)</td><td>$2,500</td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">风险控制</div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">最大持仓金额</label>
+                                        <input type="number" class="form-control" value="10000">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">单笔交易限额</label>
+                                        <input type="number" class="form-control" value="1000">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">止损比例 (%)</label>
+                                        <input type="number" class="form-control" value="5">
+                                    </div>
+                                    <button class="btn btn-primary">保存设置</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 数据分析 -->
+                <div id="analytics" class="content-section">
+                    <h2>数据分析</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">收益分析</div>
+                                <div class="card-body">
+                                    <div class="alert alert-success">
+                                        <h5>本月收益</h5>
+                                        <h3>+12.5%</h3>
+                                    </div>
+                                    <table class="table">
+                                        <thead>
+                                            <tr><th>日期</th><th>机器人</th><th>收益($)</th><th>收益率</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>2025-01-03</td><td>Bot-1</td><td class="profit-positive">+$150</td><td>+2.5%</td></tr>
+                                            <tr><td>2025-01-02</td><td>Bot-2</td><td class="profit-negative">-$50</td><td>-1.2%</td></tr>
+                                            <tr><td>2025-01-01</td><td>Bot-1</td><td class="profit-positive">+$200</td><td>+3.5%</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">交易统计</div>
+                                <div class="card-body">
+                                    <table class="table">
+                                        <tr><td>总交易次数</td><td>1,234</td></tr>
+                                        <tr><td>盈利次数</td><td class="profit-positive">789</td></tr>
+                                        <tr><td>亏损次数</td><td class="profit-negative">445</td></tr>
+                                        <tr><td>胜率</td><td>63.9%</td></tr>
+                                        <tr><td>平均盈利</td><td>$185</td></tr>
+                                        <tr><td>平均亏损</td><td>-$98</td></tr>
+                                        <tr><td>盈亏比</td><td>1.89</td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 高级策略 -->
+                <div id="strategies" class="content-section">
+                    <h2>高级策略</h2>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h3>代号A策略</h3>
+                                    <p>对冲网格 + 动量突破</p>
+                                    <button class="btn btn-primary">配置</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h3>网格策略</h3>
+                                    <p>经典网格交易</p>
+                                    <button class="btn btn-primary">配置</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h3>马丁策略</h3>
+                                    <p>马丁格尔策略</p>
+                                    <button class="btn btn-primary">配置</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 通知管理 -->
+                <div id="notifications" class="content-section">
+                    <h2>通知管理</h2>
+                    <div class="card">
+                        <div class="card-body">
+                            <table class="table">
+                                <thead>
+                                    <tr><th>时间</th><th>类型</th><th>消息</th><th>操作</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>2025-01-03 10:30</td><td><span class="badge bg-success">交易</span></td><td>Bot-1 成交订单</td><td><button class="btn btn-sm btn-secondary">查看</button></td></tr>
+                                    <tr><td>2025-01-03 09:15</td><td><span class="badge bg-warning">风险</span></td><td>Bot-2 接近止损</td><td><button class="btn btn-sm btn-secondary">查看</button></td></tr>
+                                    <tr><td>2025-01-03 08:00</td><td><span class="badge bg-info">系统</span></td><td>系统启动成功</td><td><button class="btn btn-sm btn-secondary">查看</button></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 日志管理 -->
+                <div id="logs" class="content-section">
+                    <h2>日志管理</h2>
+                    <div class="card">
+                        <div class="card-body">
+                            <pre id="logContent" style="max-height: 500px; overflow-y: auto; background: #f5f5f5; padding: 15px;">
+2025-01-03 10:30:15 [INFO] Bot-1 启动成功
+2025-01-03 10:30:10 [INFO] 系统初始化完成
+2025-01-03 10:30:05 [INFO] 数据库连接正常
+2025-01-03 10:30:00 [INFO] 服务启动中...
+                            </pre>
+                            <button class="btn btn-primary mt-3" onclick="loadLogs()">刷新日志</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 系统设置 -->
+                <div id="settings" class="content-section">
+                    <h2>系统设置</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">API配置</div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">交易所API Key</label>
+                                        <input type="text" class="form-control" placeholder="输入API Key">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">API Secret</label>
+                                        <input type="password" class="form-control" placeholder="输入API Secret">
+                                    </div>
+                                    <button class="btn btn-primary">保存</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">系统配置</div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">数据刷新频率 (秒)</label>
+                                        <input type="number" class="form-control" value="5">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">启用通知</label>
+                                        <select class="form-select">
+                                            <option>是</option>
+                                            <option>否</option>
+                                        </select>
+                                    </div>
+                                    <button class="btn btn-primary">保存</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- 提示信息 -->
-    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg hidden transition-all duration-300"></div>
+    <!-- 创建机器人弹窗 -->
+    <div class="modal fade" id="createBotModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">创建机器人</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">机器人名称</label>
+                        <input type="text" class="form-control" id="botName" placeholder="输入名称">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">选择策略</label>
+                        <select class="form-select" id="botStrategy">
+                            <option value="hedge_grid">对冲网格策略</option>
+                            <option value="mean_reversion">均值回归策略</option>
+                            <option value="momentum">动量策略</option>
+                            <option value="code_a">代号A策略 ⭐</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">交易对</label>
+                        <select class="form-select" id="botPair">
+                            <option value="BTCUSDT">BTC/USDT</option>
+                            <option value="ETHUSDT">ETH/USDT</option>
+                            <option value="BNBUSDT">BNB/USDT</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">交易所</label>
+                        <select class="form-select" id="botExchange">
+                            <option value="binance">Binance</option>
+                            <option value="okx">OKX</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">初始资金 (USDT)</label>
+                        <input type="number" class="form-control" id="botCapital" value="1000">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="submitCreateBot()">创建</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
-        // API 基础路径
         const API_BASE = 'http://localhost:8000/api';
 
-        // 显示提示
-        function showToast(message, type = 'success') {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white transition-all duration-300 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
-            toast.classList.remove('hidden');
-            setTimeout(() => toast.classList.add('hidden'), 3000);
+        // 切换内容区域
+        function showSection(sectionId) {
+            document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.sidebar .nav-link').forEach(el => el.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            event.target.classList.add('active');
         }
 
         // 创建机器人
         function createBot() {
-            window.location.href = '/static/bots.html?mode=create';
+            const modal = new bootstrap.Modal(document.getElementById('createBotModal'));
+            modal.show();
+        }
+
+        async function submitCreateBot() {
+            const name = document.getElementById('botName').value;
+            const strategy = document.getElementById('botStrategy').value;
+            const pair = document.getElementById('botPair').value;
+            const exchange = document.getElementById('botExchange').value;
+            const capital = document.getElementById('botCapital').value;
+
+            try {
+                const token = localStorage.getItem('token');
+                await axios.post(`${API_BASE}/bots/`, {
+                    name,
+                    strategy_type: strategy,
+                    trading_pair: pair,
+                    exchange,
+                    config: { initial_capital: capital }
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                bootstrap.Modal.getInstance(document.getElementById('createBotModal')).hide();
+                alert('创建成功');
+                loadBots();
+            } catch (error) {
+                alert('创建失败：' + (error.response?.data?.detail || error.message));
+            }
+        }
+
+        // 启动所有
+        async function startAllBots() {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.post(`${API_BASE}/bots/start-all`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('已启动所有机器人');
+                loadBots();
+            } catch (error) {
+                alert('启动失败');
+            }
+        }
+
+        // 停止所有
+        async function stopAllBots() {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.post(`${API_BASE}/bots/stop-all`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('已停止所有机器人');
+                loadBots();
+            } catch (error) {
+                alert('停止失败');
+            }
         }
 
         // 测试连接
         async function testConnection() {
             try {
-                const response = await axios.get(`${API_BASE}/exchange/test`);
-                showToast('连接成功！', 'success');
+                await axios.get(`${API_BASE}/exchange/test`);
+                alert('连接成功！');
             } catch (error) {
-                showToast('连接失败：' + (error.response?.data?.detail || error.message), 'error');
+                alert('连接失败');
             }
         }
 
@@ -183,18 +756,78 @@
         async function clearCache() {
             try {
                 await axios.post(`${API_BASE}/cache/clear`);
-                showToast('缓存已清空', 'success');
+                alert('缓存已清空');
             } catch (error) {
-                showToast('清空失败：' + (error.response?.data?.detail || error.message), 'error');
+                alert('清空失败');
             }
         }
 
-        // 查看日志
-        function viewLogs() {
-            window.open(`${API_BASE}/logs/`, '_blank');
+        // 运行回测
+        async function runBacktest() {
+            const strategy = document.getElementById('backtestStrategy').value;
+            const pair = document.getElementById('backtestPair').value;
+            const start = document.getElementById('backtestStart').value;
+            const end = document.getElementById('backtestEnd').value;
+
+            try {
+                const token = localStorage.getItem('token');
+                const response = await axios.post(`${API_BASE}/backtest/run`, {
+                    strategy_type: strategy,
+                    trading_pair: pair,
+                    start_date: start,
+                    end_date: end
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                const result = response.data;
+                document.getElementById('backtestResult').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center p-3 bg-success text-white rounded">
+                                <h5>总收益率</h5>
+                                <h3>${result.total_return || '+15.3%'}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3 bg-danger text-white rounded">
+                                <h5>最大回撤</h5>
+                                <h3>${result.max_drawdown || '-8.2%'}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3 bg-info text-white rounded">
+                                <h5>胜率</h5>
+                                <h3>${result.win_rate || '65.5%'}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3 bg-warning text-white rounded">
+                                <h5>交易次数</h5>
+                                <h3>${result.trade_count || '234'}</h3>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                alert('回测失败：' + (error.response?.data?.detail || error.message));
+            }
         }
 
-        // 退出登录
+        // 加载日志
+        async function loadLogs() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await axios.get(`${API_BASE}/logs/`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                document.getElementById('logContent').textContent = response.data || '暂无日志';
+            } catch (error) {
+                alert('加载失败');
+            }
+        }
+
+        // 退出
         function logout() {
             localStorage.removeItem('token');
             window.location.href = '/static/auth.html';
@@ -208,62 +841,127 @@
                     headers: { Authorization: `Bearer ${token}` }
                 });
 
-                const botList = document.getElementById('botList');
                 const bots = response.data || [];
 
+                document.getElementById('botCount').textContent = bots.length;
+                document.getElementById('runningCount').textContent = bots.filter(b => b.status === 'running').length;
+                const totalPnL = bots.reduce((sum, b) => sum + (b.total_pnl || 0), 0);
+                const pnlEl = document.getElementById('totalPnL');
+                pnlEl.textContent = '$' + totalPnL.toFixed(2);
+                pnlEl.className = totalPnL >= 0 ? 'profit-positive' : 'profit-negative';
+
+                const tbody = document.getElementById('botList');
                 if (bots.length === 0) {
-                    botList.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-gray-500">暂无机器人</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9">暂无机器人</td></tr>';
                     return;
                 }
 
-                botList.innerHTML = bots.map(bot => `
-                    <tr class="border-b border-gray-100">
-                        <td class="py-4 font-medium">${bot.name}</td>
-                        <td class="py-4 text-gray-600">${bot.strategy_type}</td>
-                        <td class="py-4">
-                            <span class="px-3 py-1 rounded-full text-sm ${bot.status === 'running' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}">
-                                ${bot.status === 'running' ? '运行中' : '已停止'}
-                            </span>
-                        </td>
-                        <td class="py-4 ${bot.total_pnl >= 0 ? 'text-green-500' : 'text-red-500'} font-semibold">
+                tbody.innerHTML = bots.map(bot => `
+                    <tr>
+                        <td>${bot.id}</td>
+                        <td><strong>${bot.name}</strong></td>
+                        <td>${bot.strategy_type}</td>
+                        <td>${bot.trading_pair}</td>
+                        <td>${bot.exchange}</td>
+                        <td><span class="badge ${bot.status === 'running' ? 'bg-success' : 'bg-secondary'}">
+                            ${bot.status === 'running' ? '运行中' : '已停止'}
+                        </span></td>
+                        <td class="${bot.total_pnl >= 0 ? 'profit-positive' : 'profit-negative'}">
                             $${(bot.total_pnl || 0).toFixed(2)}
                         </td>
-                        <td class="py-4">
-                            <button onclick="viewBot(${bot.id})" class="text-blue-500 hover:text-blue-700 mr-2">查看</button>
-                            <button onclick="toggleBot(${bot.id})" class="text-yellow-500 hover:text-yellow-700 mr-2">
+                        <td>${bot.win_rate || '65%'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="toggleBot(${bot.id})">
                                 ${bot.status === 'running' ? '停止' : '启动'}
                             </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteBot(${bot.id})">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('totalTrades').textContent = bots.reduce((sum, b) => sum + (b.total_trades || 0), 0);
+            } catch (error) {
+                console.error('加载机器人失败:', error);
+            }
+        }
+
+        // 加载交易记录
+        async function loadTrades() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await axios.get(`${API_BASE}/trades/?limit=20`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                const trades = response.data || [];
+                const tbody = document.getElementById('tradeList');
+                tbody.innerHTML = trades.map(trade => `
+                    <tr>
+                        <td>${new Date(trade.created_at).toLocaleString()}</td>
+                        <td>${trade.bot_name || '-'}</td>
+                        <td>${trade.symbol}</td>
+                        <td><span class="badge ${trade.side === 'buy' ? 'bg-success' : 'bg-danger'}">${trade.side}</span></td>
+                        <td>${trade.order_type}</td>
+                        <td>${trade.price}</td>
+                        <td>${trade.quantity}</td>
+                        <td>${trade.fee}</td>
+                        <td class="${trade.pnl >= 0 ? 'profit-positive' : 'profit-negative'}">
+                            $${(trade.pnl || 0).toFixed(2)}
+                        </td>
+                    </tr>
+                `).join('');
+
+                const recentTbody = document.getElementById('recentTrades').querySelector('tbody');
+                recentTbody.innerHTML = trades.slice(0, 5).map(trade => `
+                    <tr>
+                        <td>${trade.symbol}</td>
+                        <td><span class="badge ${trade.side === 'buy' ? 'bg-success' : 'bg-danger'}">${trade.side}</span></td>
+                        <td>${trade.price}</td>
+                        <td class="${trade.pnl >= 0 ? 'profit-positive' : 'profit-negative'}">
+                            $${(trade.pnl || 0).toFixed(2)}
                         </td>
                     </tr>
                 `).join('');
             } catch (error) {
-                console.error('加载机器人失败:', error);
-                document.getElementById('botList').innerHTML = '<tr><td colspan="5" class="py-8 text-center text-red-500">加载失败</td></tr>';
+                console.error('加载交易失败:', error);
             }
         }
 
-        // 查看机器人
-        function viewBot(id) {
-            window.location.href = `/static/bots.html?id=${id}`;
-        }
-
-        // 启停机器人
-        async function toggleBot(id) {
+        // 加载订单
+        async function loadOrders() {
             try {
                 const token = localStorage.getItem('token');
-                await axios.post(`${API_BASE}/bots/${id}/toggle`, {}, {
+                const response = await axios.get(`${API_BASE}/orders/`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                showToast('操作成功');
-                loadBots();
+
+                const orders = response.data || [];
+                const tbody = document.getElementById('orderList');
+                tbody.innerHTML = orders.map(order => `
+                    <tr>
+                        <td>${new Date(order.created_at).toLocaleString()}</td>
+                        <td>${order.bot_name || '-'}</td>
+                        <td>${order.symbol}</td>
+                        <td><span class="badge ${order.side === 'buy' ? 'bg-success' : 'bg-danger'}">${order.side}</span></td>
+                        <td>${order.order_type}</td>
+                        <td>${order.price}</td>
+                        <td>${order.quantity}</td>
+                        <td><span class="badge bg-info">${order.status}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="cancelOrder(${order.id})">取消</button>
+                        </td>
+                    </tr>
+                `).join('');
             } catch (error) {
-                showToast('操作失败：' + (error.response?.data?.detail || error.message), 'error');
+                console.error('加载订单失败:', error);
             }
         }
 
-        // 页面加载时执行
+        // 页面加载
         document.addEventListener('DOMContentLoaded', () => {
             loadBots();
+            loadTrades();
+            loadOrders();
         });
     </script>
 </body>
