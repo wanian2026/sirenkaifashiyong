@@ -41,6 +41,17 @@ class Settings(BaseSettings):
     MAX_LOGIN_ATTEMPTS: int = 5  # 最大登录尝试次数
     LOGIN_LOCKOUT_DURATION: int = 1800  # 登录锁定时长（秒），30分钟
 
+    # 邮箱配置
+    SMTP_HOST: str = "smtp.gmail.com"  # SMTP服务器地址
+    SMTP_PORT: int = 587  # SMTP端口
+    SMTP_USERNAME: str = ""  # SMTP用户名
+    SMTP_PASSWORD: str = ""  # SMTP密码或应用专用密码
+    SMTP_FROM_EMAIL: str = ""  # 发件人邮箱
+    SMTP_USE_TLS: bool = True  # 是否使用TLS加密
+
+    # 前端URL（用于生成验证邮件中的链接）
+    FRONTEND_URL: str = "http://localhost:3000"  # 前端URL
+
     class Config:
         env_file = ".env"
         case_sensitive = True

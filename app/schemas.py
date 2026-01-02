@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, Literal
 from datetime import datetime
 
@@ -14,6 +14,8 @@ class UserResponse(BaseModel):
     username: str
     email: str
     is_active: bool
+    email_verified: bool
+    mfa_enabled: bool
     created_at: datetime
 
     class Config:
@@ -36,6 +38,40 @@ class PasswordReset(BaseModel):
 class PasswordResetConfirm(BaseModel):
     token: str
     new_password: str
+
+
+# MFA相关Schema
+class MFAEnableRequest(BaseModel):
+    """启用MFA请求"""
+    password: str = Field(..., description="当前密码，用于验证身份")
+
+
+class MFAEnableResponse(BaseModel):
+    """启用MFA响应"""
+    secret: str = Field(..., description="MFA密钥")
+    qr_code_url: str = Field(..., description="QR码URL，用于配置身份验证器应用")
+    backup_codes: list[str] = Field(..., description="备用验证码列表")
+
+
+class MFAVerifyRequest(BaseModel):
+    """验证MFA请求"""
+    code: str = Field(..., description="6位验证码")
+
+
+class MFADisableRequest(BaseModel):
+    """禁用MFA请求"""
+    password: str = Field(..., description="当前密码，用于验证身份")
+
+
+# 邮箱验证相关Schema
+class EmailVerifyRequest(BaseModel):
+    """邮箱验证请求"""
+    token: str = Field(..., description="邮箱验证令牌")
+
+
+class EmailResendRequest(BaseModel):
+    """重新发送验证邮件请求"""
+    email: EmailStr = Field(..., description="用户邮箱")
 
 
 class OrderType(str):

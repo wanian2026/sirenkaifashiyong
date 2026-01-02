@@ -4,11 +4,18 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User
 from app.auth import verify_password, get_password_hash, create_access_token, verify_token
-from app.schemas import UserCreate, UserResponse, Token, PasswordChange, PasswordReset, PasswordResetConfirm, UserUpdate
+from app.schemas import (
+    UserCreate, UserResponse, Token, PasswordChange, PasswordReset, PasswordResetConfirm,
+    UserUpdate, MFAEnableRequest, MFAEnableResponse, MFAVerifyRequest,
+    MFADisableRequest, EmailVerifyRequest, EmailResendRequest
+)
+from app.mfa_service import MFAService
+from app.email_service import EmailService, PasswordResetTokenService
 from datetime import datetime, timedelta
 from app.config import settings
 from typing import Optional
 import secrets
+import json
 
 router = APIRouter()
 
@@ -177,21 +184,41 @@ async def request_password_reset(
         # 不暴露用户是否存在，返回成功消息
         return {"message": "如果邮箱存在，重置链接已发送"}
 
-    # 生成重置令牌
-    reset_token = secrets.token_urlsafe(32)
+    # 创建重置令牌
+    reset_token = PasswordResetTokenService.create_reset_token(
+        user_id=user.id,
+        expires_minutes=30
+    )
 
-    # 在实际应用中，这里应该：
-    # 1. 将令牌保存到数据库（带过期时间）
-    # 2. 发送邮件给用户，包含重置链接
-    # 为了简化，这里只返回令牌（仅用于演示）
+    # 创建邮箱服务
+    email_service = EmailService(
+        smtp_host=settings.SMTP_HOST,
+        smtp_port=settings.SMTP_PORT,
+        smtp_username=settings.SMTP_USERNAME,
+        smtp_password=settings.SMTP_PASSWORD,
+        from_email=settings.SMTP_FROM_EMAIL
+    )
 
-    # TODO: 保存令牌到数据库，设置过期时间（如30分钟）
-    # TODO: 发送邮件给用户
+    # 生成重置URL
+    reset_url = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+
+    # 生成邮件内容
+    text_content, html_content = email_service.generate_password_reset_email_content(
+        username=user.username,
+        reset_url=reset_url
+    )
+
+    # 发送邮件
+    email_service.send_email(
+        to_email=user.email,
+        subject="重置您的密码 - 加密货币交易系统",
+        html_content=html_content,
+        text_content=text_content
+    )
 
     return {
-        "message": "重置令牌已生成",
-        "token": reset_token,  # 仅用于演示，生产环境应通过邮件发送
-        "note": "在生产环境中，令牌应该通过邮件发送给用户"
+        "message": "重置邮件已发送",
+        "note": "请检查您的邮箱，包含重置密码的链接"
     }
 
 
@@ -201,18 +228,240 @@ async def confirm_password_reset(
     db: Session = Depends(get_db)
 ):
     """确认重置密码"""
-    # TODO: 从数据库验证重置令牌是否有效且未过期
-    # TODO: 检查令牌是否已被使用
+    # 验证重置令牌
+    user_id = PasswordResetTokenService.validate_reset_token(password_reset_confirm.token)
 
-    # 为了简化，这里假设令牌有效
-    # 在生产环境中，应该：
-    # 1. 查找数据库中的令牌
-    # 2. 验证令牌未过期
-    # 3. 获取关联的用户ID
-    # 4. 更新用户密码
-    # 5. 删除令牌
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无效或已过期的重置令牌"
+        )
 
-    return {
-        "message": "密码重置成功",
-        "note": "请在生产环境中实现令牌验证逻辑"
-    }
+    # 获取用户
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    # 更新密码
+    user.hashed_password = get_password_hash(password_reset_confirm.new_password)
+    db.commit()
+
+    # 标记令牌为已使用
+    PasswordResetTokenService.mark_token_used(password_reset_confirm.token)
+
+    return {"message": "密码重置成功"}
+
+
+# ==================== MFA相关端点 ====================
+
+@router.post("/mfa/enable", response_model=MFAEnableResponse)
+async def enable_mfa(
+    request: MFAEnableRequest,
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """启用多因素认证（MFA）"""
+    # 获取当前用户
+    user = await get_current_user_from_token(token, db)
+
+    # 验证密码
+    if not verify_password(request.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="密码错误"
+        )
+
+    # 如果已经启用MFA，返回错误
+    if user.mfa_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="MFA已启用"
+        )
+
+    # 生成MFA密钥
+    secret = MFAService.generate_secret()
+
+    # 生成备用验证码
+    backup_codes = MFAService.generate_backup_codes(10)
+
+    # 生成QR码URL
+    qr_code_url = MFAService.generate_qr_code_url(
+        secret=secret,
+        username=user.username,
+        issuer_name="加密货币交易系统"
+    )
+
+    # 生成QR码图片（base64）
+    qr_code_image = MFAService.generate_qr_code_image(qr_code_url)
+
+    # 保存MFA信息到数据库（但暂不启用）
+    user.mfa_secret = secret
+    user.mfa_backup_codes = json.dumps(backup_codes)
+    db.commit()
+
+    return MFAEnableResponse(
+        secret=secret,
+        qr_code_url=qr_code_image,
+        backup_codes=backup_codes
+    )
+
+
+@router.post("/mfa/verify")
+async def verify_mfa(
+    request: MFAVerifyRequest,
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """验证MFA代码并启用MFA"""
+    # 获取当前用户
+    user = await get_current_user_from_token(token, db)
+
+    # 如果MFA已经启用，返回错误
+    if user.mfa_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="MFA已启用"
+        )
+
+    # 验证MFA代码
+    if not user.mfa_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="MFA未初始化"
+        )
+
+    is_valid = MFAService.verify_totp(user.mfa_secret, request.code)
+
+    # 检查是否是备用验证码
+    if not is_valid and user.mfa_backup_codes:
+        backup_codes = json.loads(user.mfa_backup_codes)
+        is_valid, remaining_codes = MFAService.verify_backup_code(backup_codes, request.code)
+        if is_valid:
+            user.mfa_backup_codes = json.dumps(remaining_codes)
+            db.commit()
+
+    if is_valid:
+        # 启用MFA
+        user.mfa_enabled = True
+        db.commit()
+
+        return {"message": "MFA已启用"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无效的验证码"
+        )
+
+
+@router.post("/mfa/disable")
+async def disable_mfa(
+    request: MFADisableRequest,
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """禁用多因素认证（MFA）"""
+    # 获取当前用户
+    user = await get_current_user_from_token(token, db)
+
+    # 验证密码
+    if not verify_password(request.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="密码错误"
+        )
+
+    # 禁用MFA
+    user.mfa_enabled = False
+    user.mfa_secret = None
+    user.mfa_backup_codes = None
+    db.commit()
+
+    return {"message": "MFA已禁用"}
+
+
+# ==================== 邮箱验证相关端点 ====================
+
+@router.post("/verify-email")
+async def verify_email(
+    request: EmailVerifyRequest,
+    db: Session = Depends(get_db)
+):
+    """验证邮箱"""
+    # 查找用户
+    user = db.query(User).filter(
+        User.email_verification_token == request.token,
+        User.email_verification_token_expires > datetime.utcnow()
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无效或已过期的验证令牌"
+        )
+
+    # 验证邮箱
+    user.email_verified = True
+    user.email_verification_token = None
+    user.email_verification_token_expires = None
+    db.commit()
+
+    return {"message": "邮箱验证成功"}
+
+
+@router.post("/resend-verification-email")
+async def resend_verification_email(
+    request: EmailResendRequest,
+    db: Session = Depends(get_db)
+):
+    """重新发送验证邮件"""
+    # 查找用户
+    user = db.query(User).filter(User.email == request.email).first()
+
+    if not user:
+        # 不暴露用户是否存在
+        return {"message": "如果邮箱存在，验证邮件已发送"}
+
+    # 如果已经验证
+    if user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="邮箱已验证"
+        )
+
+    # 创建邮箱服务
+    email_service = EmailService(
+        smtp_host=settings.SMTP_HOST,
+        smtp_port=settings.SMTP_PORT,
+        smtp_username=settings.SMTP_USERNAME,
+        smtp_password=settings.SMTP_PASSWORD,
+        from_email=settings.SMTP_FROM_EMAIL
+    )
+
+    # 生成验证令牌
+    verification_token = email_service.generate_verification_token()
+    verification_url = f"{settings.FRONTEND_URL}/verify-email?token={verification_token}"
+
+    # 更新用户记录
+    user.email_verification_token = verification_token
+    user.email_verification_token_expires = datetime.utcnow() + timedelta(hours=24)
+    db.commit()
+
+    # 生成邮件内容
+    text_content, html_content = email_service.generate_verification_email_content(
+        username=user.username,
+        token=verification_token,
+        verification_url=verification_url
+    )
+
+    # 发送邮件
+    email_service.send_email(
+        to_email=user.email,
+        subject="验证您的邮箱 - 加密货币交易系统",
+        html_content=html_content,
+        text_content=text_content
+    )
+
+    return {"message": "验证邮件已发送"}

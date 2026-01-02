@@ -18,8 +18,36 @@ class User(Base):
     encrypted_api_key = Column(Text, nullable=True)  # 加密的API密钥
     encrypted_api_secret = Column(Text, nullable=True)  # 加密的API密钥密钥
 
+    # 多因素认证相关字段
+    mfa_enabled = Column(Boolean, default=False)  # 是否启用多因素认证
+    mfa_secret = Column(String, nullable=True)  # MFA密钥（用于生成TOTP）
+    mfa_backup_codes = Column(Text, nullable=True)  # MFA备用验证码（JSON格式存储）
+
+    # 邮箱验证相关字段
+    email_verified = Column(Boolean, default=False)  # 邮箱是否已验证
+    email_verification_token = Column(String, nullable=True)  # 邮箱验证令牌
+    email_verification_token_expires = Column(DateTime(timezone=True), nullable=True)  # 邮箱验证令牌过期时间
+
     # 关系
     roles = relationship("RoleModel", secondary="user_roles", back_populates="users")
+
+
+class PasswordResetToken(Base):
+    """密码重置令牌表"""
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String, unique=True, nullable=False, index=True)  # 重置令牌
+    user_id = Column(Integer, nullable=False)  # 关联的用户ID
+    expires_at = Column(DateTime(timezone=True), nullable=False)  # 令牌过期时间
+    used = Column(Boolean, default=False)  # 令牌是否已使用
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # 索引
+    __table_args__ = (
+        Index('idx_password_reset_token_user', 'user_id'),
+        Index('idx_password_reset_token_expires', 'expires_at'),
+    )
 
 
 class TradingBot(Base):
