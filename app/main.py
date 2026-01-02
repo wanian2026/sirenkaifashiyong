@@ -6,7 +6,7 @@ from app.database import engine
 from app.models import Base
 from app.routers import (
     auth, bots, trades, orders, risk, backtest,
-    notifications, rbac, optimization, exchange, analytics
+    notifications, rbac, optimization, exchange, analytics, strategies
 )
 from app.websocket import (
     manager,
@@ -65,6 +65,7 @@ app.include_router(rbac.router, prefix="/api/rbac", tags=["权限管理"])
 app.include_router(optimization.router, prefix="/api/optimize", tags=["系统优化"])
 app.include_router(exchange.router, prefix="/api/exchange", tags=["交易所"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["数据分析"])
+app.include_router(strategies.router, prefix="/api/strategies", tags=["高级策略"])
 
 
 @app.get("/")
@@ -92,9 +93,10 @@ async def system_info():
         "status": "running",
         "features": [
             "对冲网格策略",
+            "均值回归策略",
+            "动量策略",
             "回测引擎",
             "马丁策略",
-            "均值回归策略",
             "通知系统",
             "RBAC权限管理",
             "实时市场数据",
@@ -105,7 +107,8 @@ async def system_info():
             "风险管理",
             "数据分析仪表盘",
             "收益曲线",
-            "交易统计"
+            "交易统计",
+            "策略回测"
         ]
     }
 
