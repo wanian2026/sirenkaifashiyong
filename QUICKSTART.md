@@ -1,245 +1,225 @@
-# 🚀 快速入门指南
+# 🚀 快速开始指南
 
-## 5分钟快速部署
+## ⚡ 3 分钟快速部署
 
-### 第一步：一键部署（1分钟）
+### 1️⃣ 克隆项目
 
 ```bash
-# 进入项目目录
+git clone https://github.com/wanian2026/sirenkaifashiyong.git
 cd sirenkaifashiyong
+```
 
-# 执行一键部署脚本
-bash install.sh
+### 2️⃣ 一键部署
+
+```bash
+chmod +x deploy.sh
+./deploy.sh
 ```
 
 这个脚本会自动完成：
-- ✅ 创建Python虚拟环境
-- ✅ 安装所有依赖包
-- ✅ 配置环境变量
-- ✅ 初始化数据库
-- ✅ 创建启动脚本
+- ✅ 创建虚拟环境
+- ✅ 安装所有依赖
+- ✅ 安装和配置 PostgreSQL
+- ✅ 安装和配置 Redis
+- ✅ 创建数据库和表
+- ✅ 创建默认用户 (admin / admin123)
 
----
-
-### 第二步：启动服务（30秒）
-
-```bash
-bash start.sh
-```
-
-看到以下信息表示启动成功：
-
-```
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Application startup complete.
-```
-
----
-
-### 第三步：访问系统（10秒）
-
-在浏览器中打开：
-
-🌐 **Web界面**: http://localhost:8000/static/index.html
-
----
-
-### 第四步：登录系统（30秒）
-
-使用默认管理员账户登录：
-
-👤 **用户名**: `admin`
-🔑 **密码**: `admin123`
-
-登录后立即修改密码：
-1. 点击右上角头像
-2. 选择"修改密码"
-3. 输入新密码
-
----
-
-## 📌 快速使用
-
-### 创建第一个机器人
-
-1. **点击"机器人管理"**
-2. **点击"创建机器人"**
-3. **填写基本信息**：
-   - 名称：`测试机器人`
-   - 交易所：`Binance`
-   - 交易对：`BTC/USDT`
-   - 策略：`对冲网格`
-   - 投资金额：`1000`
-   - 网格层数：`10`
-   - 网格间距：`2%`
-
-4. **点击"创建"**
-
-### 启动机器人
-
-1. **在机器人列表中找到刚创建的机器人**
-2. **点击"启动"按钮**
-3. **查看实时状态**
-
-### 查看交易记录
-
-1. **点击"交易记录"**
-2. **查看所有交易历史**
-3. **点击"导出"下载报表**
-
----
-
-## 🛠️ 常用命令
+### 3️⃣ 启动服务
 
 ```bash
+chmod +x start.sh
+./start.sh
+```
+
+### 4️⃣ 访问界面
+
+打开浏览器访问：
+
+- **🎯 极简界面**: http://localhost:8000/static/ultra_minimal.html
+- **📚 API 文档**: http://localhost:8000/docs
+- **🔑 默认账号**: `admin` / `admin123`
+
+---
+
+## 📝 常用命令
+
+### 启动/停止
+
+```bash
+# 启动服务
+./start.sh
+
 # 停止服务
-bash stop.sh
+./stop.sh
 
-# 重启服务
-bash stop.sh && bash start.sh
-
-# 查看日志
-tail -f uvicorn.log
-
-# 进入虚拟环境
+# 或手动启动
 source venv/bin/activate
-
-# 退出虚拟环境
-deactivate
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
----
-
-## 📊 主要功能
-
-### 机器人管理
-- 创建、编辑、删除机器人
-- 批量启动/停止机器人
-- 查看机器人实时状态
-
-### 交易管理
-- 查看交易记录
-- 交易统计报表
-- 导出交易数据
-
-### 市场数据
-- 实时价格监控
-- K线图表
-- 深度图表
-
-### 策略系统
-- 对冲网格策略
-- 均值回归策略
-- 动量策略
-
-### 回测功能
-- 历史数据回测
-- 策略性能分析
-- 参数优化
-
----
-
-## 🔧 配置修改
-
-### 修改服务端口
-
-编辑 `.env` 文件：
-
-```env
-API_PORT=8001
-```
-
-重启服务生效：
+### 测试
 
 ```bash
-bash stop.sh && bash start.sh
+# 运行部署测试
+./test_deployment.sh
+
+# 测试 API
+curl http://localhost:8000/api/v1/health
 ```
 
-### 修改数据库
-
-**使用PostgreSQL（生产环境推荐）**：
+### 查看日志
 
 ```bash
-# 1. 安装PostgreSQL
-brew install postgresql
+# 查看应用日志
+tail -f logs/app.log
 
-# 2. 启动服务
-brew services start postgresql
+# 查看 PostgreSQL 日志
+tail -f /opt/homebrew/var/log/postgresql@14.log
 
-# 3. 创建数据库
-createdb cryptobot
-
-# 4. 修改.env
-DATABASE_URL=postgresql://username:password@localhost/cryptobot
-
-# 5. 重启服务
-bash stop.sh && bash start.sh
-```
-
-### 配置交易所API
-
-编辑 `.env` 文件：
-
-```env
-EXCHANGE_ID=binance
-API_KEY=your-api-key
-API_SECRET=your-api-secret
+# 查看 Redis 日志
+tail -f /opt/homebrew/var/log/redis.log
 ```
 
 ---
 
-## 📖 更多资源
+## 🎯 功能清单
 
-- **完整部署文档**: [DEPLOY_MAC.md](DEPLOY_MAC.md)
-- **用户手册**: [README.md](README.md)
-- **API文档**: http://localhost:8000/docs
+### 核心功能
+- ✅ 代号A策略（对冲马丁格尔）
+- ✅ 实时行情监控
+- ✅ 机器人管理
+- ✅ 交易记录
+- ✅ 订单管理
+- ✅ 风险管理
+- ✅ 策略回测
+
+### 交易功能
+- ✅ 支持多个交易所（Binance, OKX）
+- ✅ 多交易对支持
+- ✅ 实时价格监控
+- ✅ 自动交易执行
+- ✅ 止损机制
+
+### 管理功能
+- ✅ 用户管理
+- ✅ 审计日志
+- ✅ 性能监控
+- ✅ 数据库管理
+- ✅ 系统设置
 
 ---
 
-## ⚠️ 安全提示
+## ⚙️ 代号A策略
 
-1. **立即修改默认密码**
-2. **生产环境修改SECRET_KEY**
-3. **保护好API密钥**
-4. **定期备份数据**
+### 策略说明
+
+**代号A策略**是一个基于对冲马丁格尔的智能交易策略：
+
+1. **初始设置**: 同时开一个多单和一个空单
+2. **上涨触发**: 价格 ≥ 多单成本价 × (1 + 上涨阈值) 时，平多开多
+3. **下跌触发**: 价格 ≤ 空单成本价 × (1 - 下跌阈值) 时，平空开空
+4. **止损机制**: 多单跌破止损线或空单突破止损线时强制平仓
+
+### 创建机器人
+
+1. 登录系统
+2. 进入"机器人管理"标签
+3. 点击"创建机器人"
+4. 填写配置：
+   - 名称: `我的代号A机器人`
+   - 交易所: `Binance`
+   - 交易对: `BTC/USDT`
+   - 策略: `代号A策略`
+   - 单边投资金额: `1000`
+   - 上涨阈值: `2%`
+   - 下跌阈值: `2%`
+   - 止损比例: `10%`
+5. 点击"创建"
+6. 点击"启动"
+
+### 运行回测
+
+1. 进入"回测"标签
+2. 点击"新建回测"
+3. 填写配置：
+   - 策略: `代号A策略`
+   - 交易对: `BTC/USDT`
+   - 时间范围: 最近30天
+   - 参数: 使用默认值
+4. 点击"运行回测"
+5. 查看回测结果
 
 ---
 
-## 🆘 遇到问题？
+## 🐛 常见问题
 
-### 服务无法启动
+### PostgreSQL 连接失败
 
 ```bash
-# 检查端口是否被占用
+# 启动 PostgreSQL
+brew services start postgresql@14
+
+# 或检查端口
+lsof -i :5432
+```
+
+### Redis 连接失败
+
+```bash
+# 启动 Redis
+brew services start redis
+
+# 测试连接
+redis-cli ping
+```
+
+### 端口被占用
+
+```bash
+# 查找占用进程
 lsof -i :8000
 
-# 杀死占用进程
-kill -9 <PID>
+# 更换端口
+python -m uvicorn app.main:app --port 8001
 ```
 
-### 数据库初始化失败
+### 虚拟环境问题
 
 ```bash
-# 删除旧数据库
-rm -f crypto_bot.db
-
-# 重新初始化
-python3 init_db.py
+# 重新创建
+rm -rf venv
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
-
-### 更多问题
-
-查看 [DEPLOY_MAC.md#常见问题](DEPLOY_MAC.md#常见问题)
 
 ---
 
-## 🎉 开始使用
+## 📚 详细文档
 
-现在你已经准备好开始使用加密货币交易系统了！
+- **完整部署指南**: [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+- **Python 清理指南**: [PYTHON_CLEANUP_GUIDE.md](PYTHON_CLEANUP_GUIDE.md)
+- **README**: [README.md](README.md)
 
-**推荐阅读**:
-1. [用户手册](README.md) - 了解系统功能
-2. [策略说明](README.md#策略说明) - 学习交易策略
-3. [API文档](http://localhost:8000/docs) - 开发集成
+---
 
-祝你交易愉快！🚀
+## 🔗 相关链接
+
+- GitHub: https://github.com/wanian2026/sirenkaifashiyong
+- API 文档: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+---
+
+## 📞 获取帮助
+
+如果遇到问题：
+
+1. 查看 [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) 中的常见问题部分
+2. 检查日志: `tail -f logs/app.log`
+3. 运行测试: `./test_deployment.sh`
+4. 提交 Issue: https://github.com/wanian2026/sirenkaifashiyong/issues
+
+---
+
+**开始使用吧！** 🎉
