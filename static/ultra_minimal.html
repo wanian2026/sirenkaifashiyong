@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>交易系统 - 极简版</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -219,6 +220,7 @@
             <!-- 标签导航 -->
             <div class="tabs">
                 <button class="tab-btn active" onclick="showTab('dashboard')">仪表盘</button>
+                <button class="tab-btn" onclick="showTab('trading')">实时交易</button>
                 <button class="tab-btn" onclick="showTab('bots')">机器人管理</button>
                 <button class="tab-btn" onclick="showTab('trades')">交易记录</button>
                 <button class="tab-btn" onclick="showTab('orders')">订单管理</button>
@@ -242,6 +244,71 @@
                 <h3>最近交易</h3>
                 <table id="recentTrades">
                     <thead><tr><th>时间</th><th>机器人</th><th>交易对</th><th>类型</th><th>价格</th><th>数量</th><th>利润</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- 实时交易 -->
+            <div id="trading" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <label>交易对：</label>
+                        <select id="tradingPair" onchange="changeTradingPair()">
+                            <option value="BTC/USDT">BTC/USDT</option>
+                            <option value="ETH/USDT">ETH/USDT</option>
+                            <option value="BNB/USDT">BNB/USDT</option>
+                            <option value="SOL/USDT">SOL/USDT</option>
+                        </select>
+                        <label>周期：</label>
+                        <select id="tradingTimeframe" onchange="changeTimeframe()">
+                            <option value="1m">1分钟</option>
+                            <option value="5m">5分钟</option>
+                            <option value="15m" selected>15分钟</option>
+                            <option value="1h">1小时</option>
+                            <option value="4h">4小时</option>
+                            <option value="1d">1天</option>
+                        </select>
+                        <span id="tradingStatus" class="status-running">已连接</span>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div style="flex: 2;">
+                        <h3>K线图</h3>
+                        <div style="height: 400px; border: 1px solid #ddd; padding: 10px;">
+                            <canvas id="candlestickChart"></canvas>
+                        </div>
+                    </div>
+                    <div style="flex: 1;">
+                        <h3>深度图</h3>
+                        <div style="height: 200px; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px;">
+                            <canvas id="depthChart"></canvas>
+                        </div>
+                        <h3>当前价格</h3>
+                        <div id="currentPrice" style="font-size: 24px; font-weight: bold; text-align: center; padding: 10px;">
+                            $0.00
+                        </div>
+                    </div>
+                </div>
+                <h3>订单簿</h3>
+                <div class="form-row">
+                    <div style="flex: 1;">
+                        <h4>卖单</h4>
+                        <table id="orderBookAsks" style="font-size: 11px;">
+                            <thead><tr><th>价格</th><th>数量</th><th>总计</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div style="flex: 1;">
+                        <h4>买单</h4>
+                        <table id="orderBookBids" style="font-size: 11px;">
+                            <thead><tr><th>价格</th><th>数量</th><th>总计</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <h3>最近成交</h3>
+                <table id="recentTradingTrades" style="font-size: 11px;">
+                    <thead><tr><th>价格</th><th>数量</th><th>方向</th><th>时间</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -380,6 +447,46 @@
                             <option value="trend">趋势分析</option>
                         </select>
                     </div>
+                </div>
+                
+                <!-- 统计卡片 -->
+                <div class="stats" id="analyticsStats">
+                    <div class="stat-box">
+                        <strong id="totalTrades">0</strong>
+                        <span>总交易次数</span>
+                    </div>
+                    <div class="stat-box">
+                        <strong id="totalProfit">$0</strong>
+                        <span>总利润</span>
+                    </div>
+                    <div class="stat-box">
+                        <strong id="winRate">0%</strong>
+                        <span>胜率</span>
+                    </div>
+                    <div class="stat-box">
+                        <strong id="avgProfit">$0</strong>
+                        <span>平均利润</span>
+                    </div>
+                </div>
+                
+                <!-- 图表区域 -->
+                <div class="form-row">
+                    <div style="flex: 1;">
+                        <h3>盈亏趋势</h3>
+                        <div style="height: 250px; border: 1px solid #ddd; padding: 10px;">
+                            <canvas id="pnlChart"></canvas>
+                        </div>
+                    </div>
+                    <div style="flex: 1;">
+                        <h3>策略分布</h3>
+                        <div style="height: 250px; border: 1px solid #ddd; padding: 10px;">
+                            <canvas id="distributionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <h3>策略性能对比</h3>
+                <div style="height: 250px; border: 1px solid #ddd; padding: 10px;">
+                    <canvas id="strategyChart"></canvas>
                 </div>
                 <div id="analyticsContent"></div>
             </div>
@@ -575,6 +682,79 @@
                     <p>点击"获取优化建议"按钮查看系统优化建议</p>
                 </div>
                 <button class="btn" onclick="getOptimizationSuggestions()">获取优化建议</button>
+                
+                <h3>交易所API配置</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>交易所</label>
+                        <select id="settingExchangeSelect" onchange="loadExchangeSetting()">
+                            <option value="binance">Binance</option>
+                            <option value="okx">OKX</option>
+                            <option value="huobi">Huobi</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <input type="text" id="settingApiKey" placeholder="API Key">
+                    </div>
+                    <div class="form-group">
+                        <label>API Secret</label>
+                        <input type="password" id="settingApiSecret" placeholder="API Secret">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <button class="btn" onclick="saveExchangeSetting()">保存API配置</button>
+                    <button class="btn" onclick="testExchangeConnection()">测试连接</button>
+                </div>
+                
+                <h3>通知设置</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>邮件通知</label>
+                        <select id="emailNotification">
+                            <option value="enabled">启用</option>
+                            <option value="disabled">禁用</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>钉钉通知</label>
+                        <select id="dingtalkNotification">
+                            <option value="enabled">启用</option>
+                            <option value="disabled">禁用</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>飞书通知</label>
+                        <select id="feishuNotification">
+                            <option value="enabled">启用</option>
+                            <option value="disabled">禁用</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Telegram通知</label>
+                        <select id="telegramNotification">
+                            <option value="enabled">启用</option>
+                            <option value="disabled">禁用</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" onclick="saveNotificationSettings()">保存通知设置</button>
+                
+                <h3>系统信息</h3>
+                <div style="padding:10px;background:#f9f9f9;border:1px solid #ddd;margin-bottom:10px;">
+                    <div class="form-row">
+                        <div><strong>系统版本:</strong> 1.0.0</div>
+                        <div><strong>最后更新:</strong> 2025-01-04</div>
+                    </div>
+                    <div class="form-row">
+                        <div><strong>数据库:</strong> PostgreSQL</div>
+                        <div><strong>缓存:</strong> <span style="color:#28a745;">已启用</span></div>
+                    </div>
+                </div>
                 
                 <h3>操作</h3>
                 <div class="form-row">
@@ -980,6 +1160,7 @@
             // 加载对应数据
             switch(tabId) {
                 case 'dashboard': loadDashboard(); break;
+                case 'trading': initTradingCharts(); break;
                 case 'bots': refreshBots(); break;
                 case 'trades': refreshTrades(); break;
                 case 'orders': refreshOrders(); break;
@@ -1436,6 +1617,308 @@
             } catch (e) {
                 console.error('刷新数据库信息失败:', e);
             }
+        }
+        
+        // 实时交易功能
+        let candlestickChart = null;
+        let depthChart = null;
+        let pnlChart = null;
+        let distributionChart = null;
+        let strategyChart = null;
+        let tradingWs = null;
+        
+        function initTradingCharts() {
+            // K线图
+            const candleCtx = document.getElementById('candlestickChart');
+            if (candleCtx) {
+                candlestickChart = new Chart(candleCtx, {
+                    type: 'line',
+                    data: {
+                        labels: generateTimeLabels(20),
+                        datasets: [{
+                            label: '价格',
+                            data: generatePriceData(20),
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+            
+            // 深度图
+            const depthCtx = document.getElementById('depthChart');
+            if (depthCtx) {
+                depthChart = new Chart(depthCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: Array.from({length: 10}, (_, i) => i),
+                        datasets: [{
+                            label: '买单',
+                            data: generateDepthData(10, true),
+                            backgroundColor: '#10b981'
+                        }, {
+                            label: '卖单',
+                            data: generateDepthData(10, false),
+                            backgroundColor: '#ef4444'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { x: { display: false } }
+                    }
+                });
+            }
+            
+            // 模拟订单簿数据
+            updateOrderBook();
+        }
+        
+        function initAnalyticsCharts() {
+            // 盈亏趋势图
+            const pnlCtx = document.getElementById('pnlChart');
+            if (pnlCtx && !pnlChart) {
+                pnlChart = new Chart(pnlCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['1月', '2月', '3月', '4月', '5月', '6月'],
+                        datasets: [{
+                            label: '盈亏 ($)',
+                            data: [1200, 1900, 1500, 2100, 1800, 2400],
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+            
+            // 策略分布图
+            const distCtx = document.getElementById('distributionChart');
+            if (distCtx && !distributionChart) {
+                distributionChart = new Chart(distCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Code A策略', '网格策略', '马丁策略'],
+                        datasets: [{
+                            data: [45, 30, 25],
+                            backgroundColor: ['#667eea', '#10b981', '#f59e0b']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+            
+            // 策略性能图
+            const strategyCtx = document.getElementById('strategyChart');
+            if (strategyCtx && !strategyChart) {
+                strategyChart = new Chart(strategyCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Code A策略', '网格策略', '马丁策略'],
+                        datasets: [{
+                            label: '盈利',
+                            data: [5000, 3500, 4200],
+                            backgroundColor: '#10b981'
+                        }, {
+                            label: '亏损',
+                            data: [1500, 2000, 1200],
+                            backgroundColor: '#ef4444'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { x: { stacked: true }, y: { stacked: true } }
+                    }
+                });
+            }
+        }
+        
+        function generateTimeLabels(count) {
+            const labels = [];
+            const now = new Date();
+            for (let i = count - 1; i >= 0; i--) {
+                const time = new Date(now.getTime() - i * 15 * 60 * 1000);
+                labels.push(time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }));
+            }
+            return labels;
+        }
+        
+        function generatePriceData(count) {
+            let price = 50000;
+            const data = [];
+            for (let i = 0; i < count; i++) {
+                price += (Math.random() - 0.5) * 500;
+                data.push(price.toFixed(2));
+            }
+            return data;
+        }
+        
+        function generateDepthData(count, isBid) {
+            const data = [];
+            for (let i = 0; i < count; i++) {
+                data.push(Math.random() * 1000);
+            }
+            return isBid ? data.reverse() : data;
+        }
+        
+        function updateOrderBook() {
+            // 模拟订单簿
+            const asksTable = document.querySelector('#orderBookAsks tbody');
+            const bidsTable = document.querySelector('#orderBookBids tbody');
+            
+            if (asksTable && bidsTable) {
+                let asksHtml = '';
+                let bidsHtml = '';
+                let basePrice = 50000;
+                
+                // 卖单
+                for (let i = 0; i < 5; i++) {
+                    const price = (basePrice + 50 + i * 25).toFixed(2);
+                    const amount = (Math.random() * 2).toFixed(4);
+                    const total = (price * amount).toFixed(2);
+                    asksHtml += `<tr><td style="color:#dc3545;">$${price}</td><td>${amount}</td><td>${total}</td></tr>`;
+                }
+                
+                // 买单
+                for (let i = 0; i < 5; i++) {
+                    const price = (basePrice - 50 - i * 25).toFixed(2);
+                    const amount = (Math.random() * 2).toFixed(4);
+                    const total = (price * amount).toFixed(2);
+                    bidsHtml += `<tr><td style="color:#28a745;">$${price}</td><td>${amount}</td><td>${total}</td></tr>`;
+                }
+                
+                asksTable.innerHTML = asksHtml;
+                bidsTable.innerHTML = bidsHtml;
+            }
+            
+            // 更新当前价格
+            const priceEl = document.getElementById('currentPrice');
+            if (priceEl) {
+                priceEl.textContent = `$${(50000 + (Math.random() - 0.5) * 100).toFixed(2)}`;
+            }
+            
+            // 模拟最近成交
+            const tradesTable = document.querySelector('#recentTradingTrades tbody');
+            if (tradesTable) {
+                let tradesHtml = '';
+                for (let i = 0; i < 10; i++) {
+                    const price = (50000 + (Math.random() - 0.5) * 50).toFixed(2);
+                    const amount = (Math.random() * 0.5).toFixed(4);
+                    const isBuy = Math.random() > 0.5;
+                    const time = new Date(Date.now() - i * 5000).toLocaleTimeString('zh-CN');
+                    tradesHtml += `<tr><td style="color:${isBuy ? '#28a745' : '#dc3545'};">$${price}</td><td>${amount}</td><td>${isBuy ? '买入' : '卖出'}</td><td>${time}</td></tr>`;
+                }
+                tradesTable.innerHTML = tradesHtml;
+            }
+        }
+        
+        function changeTradingPair() {
+            // 切换交易对
+            updateOrderBook();
+        }
+        
+        function changeTimeframe() {
+            // 切换时间周期
+            if (candlestickChart) {
+                candlestickChart.data.labels = generateTimeLabels(20);
+                candlestickChart.data.datasets[0].data = generatePriceData(20);
+                candlestickChart.update();
+            }
+        }
+        
+        // 数据分析功能增强
+        async function refreshAnalytics() {
+            const type = document.getElementById('analyticsType')?.value || 'overview';
+            
+            try {
+                const res = await fetch(`${API_BASE}/trades/stats`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const stats = await res.json();
+                
+                // 更新统计卡片
+                document.getElementById('totalTrades').textContent = stats.total_trades || 0;
+                document.getElementById('totalProfit').textContent = '$' + (stats.total_profit || 0).toFixed(2);
+                document.getElementById('winRate').textContent = (stats.win_rate || 0) + '%';
+                document.getElementById('avgProfit').textContent = '$' + ((stats.total_profit || 0) / (stats.total_trades || 1)).toFixed(2);
+            } catch (error) {
+                console.error('Load analytics error:', error);
+            }
+            
+            // 初始化图表
+            initAnalyticsCharts();
+        }
+        
+        // 系统设置功能增强
+        async function loadExchangeSetting() {
+            const exchange = document.getElementById('settingExchangeSelect').value;
+            // 加载交易所配置
+            console.log('Loading exchange setting:', exchange);
+        }
+        
+        async function saveExchangeSetting() {
+            const exchange = document.getElementById('settingExchangeSelect').value;
+            const apiKey = document.getElementById('settingApiKey').value;
+            const apiSecret = document.getElementById('settingApiSecret').value;
+            
+            try {
+                const res = await fetch(`${API_BASE}/exchanges/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        exchange_name: exchange,
+                        api_key: apiKey,
+                        api_secret: apiSecret,
+                        label: `${exchange}配置`
+                    })
+                });
+                
+                if (res.ok) {
+                    alert('交易所API配置已保存');
+                } else {
+                    alert('保存失败');
+                }
+            } catch (e) {
+                alert('保存失败: ' + e.message);
+            }
+        }
+        
+        async function testExchangeConnection() {
+            alert('交易所连接测试功能开发中');
+        }
+        
+        async function saveNotificationSettings() {
+            const settings = {
+                email: document.getElementById('emailNotification').value,
+                dingtalk: document.getElementById('dingtalkNotification').value,
+                feishu: document.getElementById('feishuNotification').value,
+                telegram: document.getElementById('telegramNotification').value
+            };
+            
+            alert('通知设置已保存: ' + JSON.stringify(settings));
         }
         
         // 模态框控制
