@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr, Field
+import json
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, Literal
 from datetime import datetime
 
@@ -168,6 +169,21 @@ class BotResponse(BaseModel):
     status: str
     config: Optional[dict]
     created_at: datetime
+
+    @field_validator('config', mode='before')
+    @classmethod
+    def parse_config(cls, v):
+        """将config JSON字符串转换为dict"""
+        if v is None:
+            return {}
+        if isinstance(v, dict):
+            return v
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                return {}
+        return {}
 
     class Config:
         from_attributes = True

@@ -387,7 +387,7 @@
                     showSuccess('登录成功！正在跳转...');
 
                     setTimeout(() => {
-                        window.location.href = '/static/main-dashboard.html';
+                        window.location.href = '/static/simple.html';
                     }, 1000);
                 }
             } catch (error) {
@@ -453,7 +453,7 @@
         window.onload = () => {
             const token = localStorage.getItem('token');
             if (token) {
-                window.location.href = '/static/main-dashboard.html';
+                window.location.href = '/static/simple.html';
             }
         };
     </script>

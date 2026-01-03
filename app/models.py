@@ -69,6 +69,16 @@ class TradingBot(Base):
         Index('idx_trading_bots_user_status', 'user_id', 'status'),
     )
 
+    @property
+    def config_dict(self):
+        """将config JSON字符串转换为dict"""
+        if self.config is None:
+            return {}
+        try:
+            return json.loads(self.config)
+        except (json.JSONDecodeError, TypeError):
+            return {}
+
 
 class GridOrder(Base):
     __tablename__ = "grid_orders"

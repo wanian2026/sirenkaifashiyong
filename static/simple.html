@@ -838,7 +838,7 @@
                 const token = localStorage.getItem('token');
                 await axios.post(`${API_BASE}/bots/`, {
                     name,
-                    strategy_type: strategy,
+                    strategy: strategy,
                     trading_pair: pair,
                     exchange,
                     config: config ? JSON.parse(config) : { initial_capital: capital }
@@ -1107,7 +1107,7 @@
                     <tr>
                         <td>${bot.id}</td>
                         <td><strong>${bot.name}</strong></td>
-                        <td>${bot.strategy_type}</td>
+                        <td>${bot.strategy}</td>
                         <td>${bot.trading_pair}</td>
                         <td>${bot.exchange}</td>
                         <td class="${bot.status === 'running' ? 'status-running' : 'status-stopped'}">
@@ -1222,6 +1222,15 @@
         // 页面加载
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('backtestEnd').valueAsDate = new Date();
+
+            // 检查是否已登录
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('请先登录！');
+                window.location.href = '/static/auth.html';
+                return;
+            }
+
             loadBots();
             loadTrades();
             loadOrders();
