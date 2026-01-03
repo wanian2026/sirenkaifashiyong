@@ -70,9 +70,9 @@ MarkupSafe==3.0.3
 mccabe==0.7.0
 more-itertools==10.8.0
 multidict==6.7.0
-numpy==2.4.0
+numpy>=2.1.0  # 使用支持 Python 3.14 的版本
 openai==2.12.0
-opencv-python==4.8.0.74
+opencv-python>=4.10.0  # 使用支持 Python 3.14 的版本
 openpyxl==3.1.5
 orjson==3.11.5
 ormsgpack==1.12.1
@@ -80,7 +80,7 @@ packaging==25.0
 pandas==2.2.2
 paragraphs==1.0.1
 passlib==1.7.4
-pillow==10.3.0
+pillow>=11.0.0  # 使用支持 Python 3.14 的版本
 platformdirs==4.5.1
 pluggy==1.6.0
 propcache==0.4.1
