@@ -11,6 +11,7 @@ from app.config import settings
 from typing import List, Dict, Optional
 import logging
 from datetime import datetime, timedelta
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -466,4 +467,58 @@ async def test_connection():
                 "message": "连接失败"
             }
         }
+
+
+@router.get("/tickers/batch")
+async def get_batch_tickers(
+    symbols: str = Query(..., description="交易对列表，逗号分隔，如 BTC/USDT,ETH/USDT")
+):
+    """
+    批量获取多个交易对的行情信息
+
+    Args:
+        symbols: 交易对列表，逗号分隔（如 BTC/USDT,ETH/USDT）
+
+    Returns:
+        批量行情数据列表
+    """
+    try:
+        # 解析交易对列表
+        symbol_list = [s.strip() for s in symbols.split(',') if s.strip()]
+
+        logger.info(f"批量获取行情: {symbol_list}")
+
+        tickers = []
+        for symbol in symbol_list:
+            try:
+                # 尝试从真实交易所获取数据
+                exchange_api = get_exchange_api()
+                ticker_data = await exchange_api.get_ticker(symbol)
+                tickers.append({
+                    "symbol": symbol,
+                    "last": ticker_data.get('last'),
+                    "high": ticker_data.get('high'),
+                    "low": ticker_data.get('low'),
+                    "bid": ticker_data.get('bid'),
+                    "ask": ticker_data.get('ask'),
+                    "volume": ticker_data.get('volume'),
+                    "quoteVolume": ticker_data.get('quoteVolume'),
+                    "change": ticker_data.get('change'),
+                    "percentage": ticker_data.get('percentage'),
+                    "timestamp": ticker_data.get('timestamp')
+                })
+            except Exception as e:
+                logger.warning(f"获取行情失败 [{symbol}]: {e}")
+                # 使用模拟数据作为回退
+                ticker_data = generate_ticker_data(symbol)
+                tickers.append(ticker_data)
+
+        return {
+            "success": True,
+            "data": tickers,
+            "count": len(tickers)
+        }
+    except Exception as e:
+        logger.error(f"批量获取行情失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 

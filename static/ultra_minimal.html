@@ -221,6 +221,7 @@
             <div class="tabs">
                 <button class="tab-btn active" onclick="showTab('dashboard')">仪表盘</button>
                 <button class="tab-btn" onclick="showTab('trading')">实时交易</button>
+                <button class="tab-btn" onclick="showTab('market')">实时行情</button>
                 <button class="tab-btn" onclick="showTab('bots')">机器人管理</button>
                 <button class="tab-btn" onclick="showTab('trades')">交易记录</button>
                 <button class="tab-btn" onclick="showTab('orders')">订单管理</button>
@@ -1161,6 +1162,7 @@
             switch(tabId) {
                 case 'dashboard': loadDashboard(); break;
                 case 'trading': initTradingCharts(); break;
+                case 'market': window.location.href = '/static/market.html'; break;
                 case 'bots': refreshBots(); break;
                 case 'trades': refreshTrades(); break;
                 case 'orders': refreshOrders(); break;
