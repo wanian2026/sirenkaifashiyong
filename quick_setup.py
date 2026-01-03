@@ -189,27 +189,27 @@ class QuickSetup:
         
         # 策略选择
         print("\n可用策略:")
-        print("  1. hedge_grid (对冲网格)")
-        print("  2. mean_reversion (均值回归)")
-        print("  3. momentum (动量策略)")
-        strategy_map = {"1": "hedge_grid", "2": "mean_reversion", "3": "momentum"}
-        strategy_choice = input("请选择策略 (1-3) [默认: 1]: ").strip() or "1"
-        strategy = strategy_map.get(strategy_choice, "hedge_grid")
-        
+        print("  1. code_a (Code A策略)")
+        strategy_map = {"1": "code_a"}
+        strategy_choice = input("请选择策略 (1-1) [默认: 1]: ").strip() or "1"
+        strategy = strategy_map.get(strategy_choice, "code_a")
+
         # 策略配置
         self.print_info("配置策略参数:")
-        
+
         grid_levels = int(input("网格层数 [默认: 10]: ").strip() or "10")
         grid_spacing = float(input("网格间距，如 0.02 表示 2% [默认: 0.02]: ").strip() or "0.02")
+        threshold = float(input("阈值，如 0.01 表示 1% [默认: 0.01]: ").strip() or "0.01")
         investment_amount = float(input("投资金额 USDT [默认: 100]: ").strip() or "100")
         max_position = float(input("最大仓位 USDT [默认: 1000]: ").strip() or "1000")
         stop_loss = float(input("止损阈值，如 0.05 表示 5% [默认: 0.05]: ").strip() or "0.05")
         take_profit = float(input("止盈阈值，如 0.10 表示 10% [默认: 0.10]: ").strip() or "0.10")
-        
+
         # 构建配置
         config = {
             "grid_levels": grid_levels,
             "grid_spacing": grid_spacing,
+            "threshold": threshold,
             "investment_amount": investment_amount,
             "max_position": max_position,
             "stop_loss_threshold": stop_loss,

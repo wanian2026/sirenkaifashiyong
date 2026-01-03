@@ -608,7 +608,7 @@
             <div class="form-row">
                 <div class="form-group">
                     <label>策略类型</label>
-                    <select id="botStrategy"><option value="grid">网格策略</option><option value="hedge_grid">对冲网格</option><option value="martingale">马丁格尔</option><option value="mean_reversion">均值回归</option><option value="momentum">动量策略</option><option value="code_a">Code A策略</option></select>
+                    <select id="botStrategy"><option value="code_a">Code A策略</option></select>
                 </div>
                 <div class="form-group">
                     <label>投资金额(USDT)</label>
@@ -625,6 +625,26 @@
                     <input type="number" id="botGridSpacing" value="2" step="0.1">
                 </div>
             </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>阈值(%)</label>
+                    <input type="number" id="botThreshold" value="1" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>止损阈值(%)</label>
+                    <input type="number" id="botStopLoss" value="5" step="0.1">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>止盈阈值(%)</label>
+                    <input type="number" id="botTakeProfit" value="10" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>最大仓位(USDT)</label>
+                    <input type="number" id="botMaxPosition" value="10000">
+                </div>
+            </div>
             <div class="modal-buttons">
                 <button class="btn" onclick="closeModal('createBotModal')">取消</button>
                 <button class="btn btn-primary" onclick="createBot()">创建</button>
@@ -638,7 +658,7 @@
             <h3>新建回测</h3>
             <div class="form-group">
                 <label>策略类型</label>
-                <select id="backtestStrategy"><option value="grid">网格策略</option><option value="hedge_grid">对冲网格</option><option value="martingale">马丁格尔</option><option value="mean_reversion">均值回归</option><option value="momentum">动量策略</option><option value="code_a">Code A策略</option></select>
+                <select id="backtestStrategy"><option value="code_a">Code A策略</option></select>
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -1051,14 +1071,22 @@
         }
         
         async function createBot() {
-            const data = {
-                name: document.getElementById('botName').value,
-                exchange_id: document.getElementById('botExchange').value,
-                symbol: document.getElementById('botSymbol').value,
-                strategy_type: document.getElementById('botStrategy').value,
+            const config = {
                 investment_amount: parseFloat(document.getElementById('botInvestment').value),
                 grid_levels: parseInt(document.getElementById('botGridLevels').value),
-                grid_spacing: parseFloat(document.getElementById('botGridSpacing').value) / 100
+                grid_spacing: parseFloat(document.getElementById('botGridSpacing').value) / 100,
+                threshold: parseFloat(document.getElementById('botThreshold').value) / 100,
+                stop_loss_threshold: parseFloat(document.getElementById('botStopLoss').value) / 100,
+                take_profit_threshold: parseFloat(document.getElementById('botTakeProfit').value) / 100,
+                max_position: parseFloat(document.getElementById('botMaxPosition').value)
+            };
+            
+            const data = {
+                name: document.getElementById('botName').value,
+                exchange: document.getElementById('botExchange').value,
+                trading_pair: document.getElementById('botSymbol').value,
+                strategy: document.getElementById('botStrategy').value,
+                config: config
             };
             
             try {
