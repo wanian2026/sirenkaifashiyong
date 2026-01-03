@@ -187,6 +187,84 @@
             .tabs { max-height: 120px; }
             .form-row { grid-template-columns: 1fr; }
         }
+
+        /* Market Styles */
+        .price-up {
+            color: #10b981;
+            animation: flashGreen 0.3s ease;
+        }
+
+        .price-down {
+            color: #ef4444;
+            animation: flashRed 0.3s ease;
+        }
+
+        @keyframes flashGreen {
+            0% { background-color: rgba(16, 185, 129, 0.2); }
+            100% { background-color: transparent; }
+        }
+
+        @keyframes flashRed {
+            0% { background-color: rgba(239, 68, 68, 0.2); }
+            100% { background-color: transparent; }
+        }
+
+        .market-row:hover {
+            background-color: #f0f0f0;
+            cursor: pointer;
+        }
+
+        .selected-row {
+            background-color: #e0e0e0;
+        }
+
+        .market-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 10px;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .market-grid-header {
+            background: #f5f5f5;
+            font-weight: bold;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .market-col-3 { grid-column: span 3; }
+        .market-col-2 { grid-column: span 2; }
+        .market-col-1 { grid-column: span 1; }
+
+        .market-price-right { text-align: right; }
+        .market-change-positive { color: #10b981; }
+        .market-change-negative { color: #ef4444; }
+
+        .market-toolbar {
+            padding: 10px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+        }
+
+        .market-toolbar-item {
+            display: inline-block;
+            margin-right: 15px;
+        }
+
+        .market-selected-info {
+            padding: 15px;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            margin-top: 15px;
+        }
+
+        .market-info-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
     </style>
 </head>
 <body>
@@ -313,7 +391,106 @@
                     <tbody></tbody>
                 </table>
             </div>
-            
+
+            <!-- 实时行情 -->
+            <div id="market" class="tab-content">
+                <!-- Market Toolbar -->
+                <div class="market-toolbar">
+                    <div class="market-toolbar-item">
+                        <label>交易所：</label>
+                        <select id="marketExchangeSelect" onchange="changeMarketExchange()" class="btn-small">
+                            <option value="binance">币安 (Binance)</option>
+                            <option value="okx">OKX</option>
+                            <option value="huobi">火币 (Huobi)</option>
+                        </select>
+                    </div>
+                    <div class="market-toolbar-item">
+                        <label>连接状态：</label>
+                        <span id="marketConnectionStatus">连接中...</span>
+                    </div>
+                    <div class="market-toolbar-item" style="float: right;">
+                        <span id="marketLastUpdate" style="color: #666; font-size: 11px;"></span>
+                    </div>
+                </div>
+
+                <!-- Search and Filter -->
+                <div class="market-toolbar">
+                    <div class="market-toolbar-item">
+                        <label>搜索：</label>
+                        <input type="text" id="marketSearchInput" onkeyup="filterMarkets()"
+                               placeholder="输入交易对名称..." style="width: 200px; padding: 4px;">
+                    </div>
+                    <div class="market-toolbar-item">
+                        <label>排序：</label>
+                        <select id="marketSortBy" onchange="sortMarkets()" class="btn-small">
+                            <option value="name">名称</option>
+                            <option value="price">价格</option>
+                            <option value="change">涨跌幅</option>
+                            <option value="volume">成交量</option>
+                        </select>
+                    </div>
+                    <div class="market-toolbar-item">
+                        <label>方向：</label>
+                        <select id="marketSortOrder" onchange="sortMarkets()" class="btn-small">
+                            <option value="desc">降序</option>
+                            <option value="asc">升序</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Market Table -->
+                <div style="border: 1px solid #ddd;">
+                    <!-- Table Header -->
+                    <div class="market-grid market-grid-header">
+                        <div class="market-col-3">交易对</div>
+                        <div class="market-col-2 market-price-right">最新价</div>
+                        <div class="market-col-2 market-price-right">24h涨跌</div>
+                        <div class="market-col-2 market-price-right">24h最高</div>
+                        <div class="market-col-2 market-price-right">24h最低</div>
+                        <div class="market-col-1 market-price-right">成交量</div>
+                    </div>
+
+                    <!-- Table Body -->
+                    <div id="marketTable">
+                        <!-- Loading State -->
+                        <div id="marketLoadingState" style="text-align: center; padding: 30px;">
+                            <span>加载中...</span>
+                        </div>
+
+                        <!-- Empty State -->
+                        <div id="marketEmptyState" class="hidden" style="text-align: center; padding: 30px;">
+                            <span>暂无数据</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selected Symbol Info -->
+                <div id="marketSelectedInfo" class="market-selected-info hidden">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="font-size: 18px; font-weight: bold;" id="selectedMarketSymbol">BTC/USDT</h3>
+                        <button onclick="showTab('trading')" class="btn btn-primary">查看交易</button>
+                    </div>
+                    <div class="market-info-grid">
+                        <div>
+                            <p style="color: #666; font-size: 11px; margin-bottom: 5px;">最新价格</p>
+                            <p style="font-size: 20px; font-weight: bold;" id="selectedMarketPrice">$0.00</p>
+                        </div>
+                        <div>
+                            <p style="color: #666; font-size: 11px; margin-bottom: 5px;">24h涨跌</p>
+                            <p style="font-size: 16px; font-weight: 600;" id="selectedMarketChange">+0.00%</p>
+                        </div>
+                        <div>
+                            <p style="color: #666; font-size: 11px; margin-bottom: 5px;">24h成交量</p>
+                            <p style="font-size: 16px; font-weight: 600;" id="selectedMarketVolume">0</p>
+                        </div>
+                        <div>
+                            <p style="color: #666; font-size: 11px; margin-bottom: 5px;">24h成交额</p>
+                            <p style="font-size: 16px; font-weight: 600;" id="selectedMarketQuoteVolume">$0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 机器人管理 -->
             <div id="bots" class="tab-content">
                 <div class="toolbar">
@@ -1162,7 +1339,7 @@
             switch(tabId) {
                 case 'dashboard': loadDashboard(); break;
                 case 'trading': initTradingCharts(); break;
-                case 'market': window.location.href = '/static/market.html'; break;
+                case 'market': initMarketTab(); break;
                 case 'bots': refreshBots(); break;
                 case 'trades': refreshTrades(); break;
                 case 'orders': refreshOrders(); break;
@@ -3069,6 +3246,294 @@
             } catch (e) {
                 alert('删除失败: ' + e.message);
             }
+        }
+
+        // ============ Market Tab Functions ============
+        let allMarkets = [];
+        let currentPrices = {};
+        let selectedSymbol = null;
+        let marketRefreshInterval = null;
+        let previousPrices = {};
+
+        function initMarketTab() {
+            loadMarkets();
+            startMarketAutoRefresh();
+        }
+
+        async function loadMarkets() {
+            try {
+                showMarketLoading(true);
+
+                // 获取交易对列表
+                const pairsRes = await fetch('/api/exchange/pairs');
+                const pairsData = await pairsRes.json();
+
+                if (pairsData.success) {
+                    allMarkets = pairsData.data;
+
+                    // 获取所有交易对的实时行情
+                    const symbols = allMarkets.map(m => m.symbol).join(',');
+                    await loadMarketTickers(symbols);
+
+                    renderMarketTable();
+                    updateMarketConnectionStatus(true);
+                    showMarketLoading(false);
+                }
+            } catch (error) {
+                console.error('加载市场列表失败:', error);
+                updateMarketConnectionStatus(false);
+                showMarketLoading(false);
+                showMarketError('加载数据失败，请检查网络连接');
+            }
+        }
+
+        async function loadMarketTickers(symbols) {
+            try {
+                const tickerRes = await fetch(`/api/exchange/tickers/batch?symbols=${symbols}`);
+                const tickerData = await tickerRes.json();
+
+                if (tickerData.success) {
+                    tickerData.data.forEach(ticker => {
+                        currentPrices[ticker.symbol] = ticker;
+                    });
+                    updateMarketLastUpdateTime();
+                }
+            } catch (error) {
+                console.error('加载行情数据失败:', error);
+            }
+        }
+
+        function renderMarketTable() {
+            const table = document.getElementById('marketTable');
+            const emptyState = document.getElementById('marketEmptyState');
+
+            if (allMarkets.length === 0) {
+                table.innerHTML = '';
+                table.appendChild(emptyState);
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            // 过滤和排序
+            let filteredMarkets = filterAndSortMarkets();
+
+            let html = '';
+            filteredMarkets.forEach(market => {
+                const ticker = currentPrices[market.symbol] || {};
+                const price = ticker.last || 0;
+                const change = ticker.percentage || 0;
+                const high = ticker.high || 0;
+                const low = ticker.low || 0;
+                const volume = ticker.volume || 0;
+
+                // 比较价格变化
+                const prevPrice = previousPrices[market.symbol] || price;
+                let priceClass = '';
+                if (price > prevPrice) {
+                    priceClass = 'price-up';
+                } else if (price < prevPrice) {
+                    priceClass = 'price-down';
+                }
+
+                // 涨跌颜色
+                const changeClass = change >= 0 ? 'market-change-positive' : 'market-change-negative';
+                const changePrefix = change >= 0 ? '+' : '';
+
+                // 选中状态
+                const selectedClass = selectedSymbol === market.symbol ? 'selected-row' : '';
+
+                html += `
+                    <div class="market-grid market-row ${selectedClass}"
+                         onclick="selectMarketSymbol('${market.symbol}')">
+                        <div class="market-col-3">
+                            <div style="font-weight: 600; font-size: 13px;">${market.symbol}</div>
+                            <div style="font-size: 11px; color: #666;">${market.name || market.base}</div>
+                        </div>
+                        <div class="market-col-2 market-price-right">
+                            <div style="font-weight: 600; font-size: 13px; ${priceClass}" data-symbol="${market.symbol}">${formatMarketPrice(price)}</div>
+                        </div>
+                        <div class="market-col-2 market-price-right">
+                            <div style="font-size: 13px; ${changeClass}">${changePrefix}${change.toFixed(2)}%</div>
+                        </div>
+                        <div class="market-col-2 market-price-right">
+                            <div style="font-size: 13px;">${formatMarketPrice(high)}</div>
+                        </div>
+                        <div class="market-col-2 market-price-right">
+                            <div style="font-size: 13px;">${formatMarketPrice(low)}</div>
+                        </div>
+                        <div class="market-col-1 market-price-right">
+                            <div style="font-size: 13px;">${formatMarketVolume(volume)}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            table.innerHTML = html;
+
+            // 保存当前价格用于下次比较
+            previousPrices = { ...currentPrices };
+        }
+
+        function filterAndSortMarkets() {
+            const searchTerm = document.getElementById('marketSearchInput').value.toLowerCase();
+            const sortBy = document.getElementById('marketSortBy').value;
+            const sortOrder = document.getElementById('marketSortOrder').value;
+
+            // 过滤
+            let filtered = allMarkets.filter(market =>
+                market.symbol.toLowerCase().includes(searchTerm) ||
+                (market.name && market.name.toLowerCase().includes(searchTerm))
+            );
+
+            // 排序
+            filtered.sort((a, b) => {
+                let valueA, valueB;
+
+                switch (sortBy) {
+                    case 'price':
+                        valueA = currentPrices[a.symbol]?.last || 0;
+                        valueB = currentPrices[b.symbol]?.last || 0;
+                        break;
+                    case 'change':
+                        valueA = currentPrices[a.symbol]?.percentage || 0;
+                        valueB = currentPrices[b.symbol]?.percentage || 0;
+                        break;
+                    case 'volume':
+                        valueA = currentPrices[a.symbol]?.volume || 0;
+                        valueB = currentPrices[b.symbol]?.volume || 0;
+                        break;
+                    default: // name
+                        valueA = a.symbol;
+                        valueB = b.symbol;
+                }
+
+                if (sortOrder === 'asc') {
+                    return valueA > valueB ? 1 : -1;
+                } else {
+                    return valueA < valueB ? 1 : -1;
+                }
+            });
+
+            return filtered;
+        }
+
+        function selectMarketSymbol(symbol) {
+            selectedSymbol = symbol;
+            const ticker = currentPrices[symbol];
+
+            // 更新选中状态
+            renderMarketTable();
+
+            // 显示选中信息
+            if (ticker) {
+                document.getElementById('marketSelectedInfo').classList.remove('hidden');
+                document.getElementById('selectedMarketSymbol').textContent = symbol;
+                document.getElementById('selectedMarketPrice').textContent = formatMarketPrice(ticker.last);
+
+                const change = ticker.percentage || 0;
+                const changeEl = document.getElementById('selectedMarketChange');
+                changeEl.textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
+                changeEl.className = `font-size: 16px; font-weight: 600; ${change >= 0 ? 'market-change-positive' : 'market-change-negative'}`;
+
+                document.getElementById('selectedMarketVolume').textContent = formatMarketVolume(ticker.volume);
+                document.getElementById('selectedMarketQuoteVolume').textContent = '$' + formatMarketVolume(ticker.quoteVolume);
+            }
+        }
+
+        function startMarketAutoRefresh() {
+            if (marketRefreshInterval) {
+                clearInterval(marketRefreshInterval);
+            }
+
+            marketRefreshInterval = setInterval(async () => {
+                try {
+                    const symbols = allMarkets.map(m => m.symbol).join(',');
+                    await loadMarketTickers(symbols);
+                    renderMarketTable();
+
+                    // 如果有选中的交易对，更新选中信息
+                    if (selectedSymbol && currentPrices[selectedSymbol]) {
+                        selectMarketSymbol(selectedSymbol);
+                    }
+                } catch (error) {
+                    console.error('刷新行情失败:', error);
+                }
+            }, 3000); // 每3秒刷新一次
+        }
+
+        function filterMarkets() {
+            renderMarketTable();
+        }
+
+        function sortMarkets() {
+            renderMarketTable();
+        }
+
+        function changeMarketExchange() {
+            // 清空当前数据
+            allMarkets = [];
+            currentPrices = {};
+            selectedSymbol = null;
+            document.getElementById('marketSelectedInfo').classList.add('hidden');
+
+            // 重新加载
+            loadMarkets();
+        }
+
+        function formatMarketPrice(price) {
+            if (!price) return '$0.00';
+            if (price >= 1) {
+                return '$' + price.toFixed(2);
+            } else {
+                return '$' + price.toFixed(6);
+            }
+        }
+
+        function formatMarketVolume(volume) {
+            if (!volume) return '0';
+            if (volume >= 1000000) {
+                return (volume / 1000000).toFixed(2) + 'M';
+            } else if (volume >= 1000) {
+                return (volume / 1000).toFixed(2) + 'K';
+            }
+            return volume.toFixed(2);
+        }
+
+        function updateMarketConnectionStatus(connected) {
+            const status = document.getElementById('marketConnectionStatus');
+            if (connected) {
+                status.innerHTML = '<span style="color: #10b981; font-weight: bold;">● 已连接</span>';
+            } else {
+                status.innerHTML = '<span style="color: #ef4444; font-weight: bold;">● 连接失败</span>';
+            }
+        }
+
+        function updateMarketLastUpdateTime() {
+            const now = new Date();
+            document.getElementById('marketLastUpdate').textContent = '更新于: ' + now.toLocaleTimeString();
+        }
+
+        function showMarketLoading(show) {
+            const loadingState = document.getElementById('marketLoadingState');
+            if (show) {
+                loadingState.classList.remove('hidden');
+            } else {
+                loadingState.classList.add('hidden');
+            }
+        }
+
+        function showMarketError(message) {
+            const table = document.getElementById('marketTable');
+            table.innerHTML = `
+                <div style="text-align: center; padding: 30px;">
+                    <div>
+                        <p style="color: #ef4444; margin-bottom: 10px;">${message}</p>
+                        <button onclick="loadMarkets()" class="btn btn-primary">重试</button>
+                    </div>
+                </div>
+            `;
         }
     </script>
 </body>
