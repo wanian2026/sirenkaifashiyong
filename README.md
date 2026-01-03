@@ -2,6 +2,27 @@
 
 基于LangGraph工作流的加密货币合约交易系统，支持对冲网格策略和Web界面操作。
 
+## 🚀 快速开始
+
+### Mac本地部署
+
+**一键部署（推荐）:**
+
+```bash
+# 1. 进入项目目录
+cd sirenkaifashiyong
+
+# 2. 一键部署
+bash install.sh
+
+# 3. 启动服务
+bash start.sh
+```
+
+**5分钟快速入门**: [查看 QUICKSTART.md](QUICKSTART.md)
+
+**详细部署文档**: [查看 DEPLOY_MAC.md](DEPLOY_MAC.md)
+
 ## 功能特性
 
 - 🤖 **多交易所支持**: 支持Binance、OKX、Huobi等主流交易所
