@@ -11,7 +11,7 @@ from app.auth import get_current_user
 from app.models import User
 from app.database_manager import DatabaseManager
 from app.config import settings
-from app.rbac import Permission, PermissionChecker
+from app.rbac import Permission, PermissionChecker, get_user_permissions
 import logging
 import os
 
@@ -43,13 +43,12 @@ async def create_database_backup(
     需要权限: system:backup 或 ADMIN角色
     """
     # 检查权限
-    if current_user.role != "admin":
-        user_permissions = []
-        if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_BACKUP):
-            raise HTTPException(
-                status_code=403,
-                detail="无权创建数据库备份"
-            )
+    user_permissions = get_user_permissions(current_user)
+    if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_BACKUP):
+        raise HTTPException(
+            status_code=403,
+            detail="无权创建数据库备份"
+        )
 
     try:
         # 获取数据库管理器
@@ -84,14 +83,15 @@ async def list_database_backups(
 
     需要权限: system:backup 或 ADMIN角色
     """
+    # 获取用户权限
+    user_permissions = get_user_permissions(current_user)
+
     # 检查权限
-    if current_user.role != "admin":
-        user_permissions = []
-        if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_BACKUP):
-            raise HTTPException(
-                status_code=403,
-                detail="无权访问数据库备份列表"
-            )
+    if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_BACKUP):
+        raise HTTPException(
+            status_code=403,
+            detail="无权访问数据库备份列表"
+        )
 
     try:
         # 获取数据库管理器
@@ -127,13 +127,12 @@ async def restore_database(
     需要权限: system:backup 或 ADMIN角色
     """
     # 检查权限
-    if current_user.role != "admin":
-        user_permissions = []
-        if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_BACKUP):
-            raise HTTPException(
-                status_code=403,
-                detail="无权恢复数据库"
-            )
+    user_permissions = get_user_permissions(current_user)
+    if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_RESTORE):
+        raise HTTPException(
+            status_code=403,
+            detail="无权恢复数据库"
+        )
 
     try:
         # 获取数据库管理器
@@ -176,9 +175,8 @@ async def delete_database_backup(
     需要权限: system:backup 或 ADMIN角色
     """
     # 检查权限
-    if current_user.role != "admin":
-        user_permissions = []
-        if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_BACKUP):
+    user_permissions = get_user_permissions(current_user)
+    if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_BACKUP):
             raise HTTPException(
                 status_code=403,
                 detail="无权删除数据库备份"
@@ -221,9 +219,8 @@ async def cleanup_old_backups(
     需要权限: system:backup 或 ADMIN角色
     """
     # 检查权限
-    if current_user.role != "admin":
-        user_permissions = []
-        if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_BACKUP):
+    user_permissions = get_user_permissions(current_user)
+    if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_BACKUP):
             raise HTTPException(
                 status_code=403,
                 detail="无权清理数据库备份"
@@ -262,9 +259,8 @@ async def cleanup_old_data(
     需要权限: system:backup 或 ADMIN角色
     """
     # 检查权限
-    if current_user.role != "admin":
-        user_permissions = []
-        if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_BACKUP):
+    user_permissions = get_user_permissions(current_user)
+    if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_BACKUP):
             raise HTTPException(
                 status_code=403,
                 detail="无权清理数据库数据"
@@ -301,9 +297,8 @@ async def get_database_stats(
     需要权限: system:backup 或 ADMIN角色
     """
     # 检查权限
-    if current_user.role != "admin":
-        user_permissions = []
-        if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_BACKUP):
+    user_permissions = get_user_permissions(current_user)
+    if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_BACKUP):
             raise HTTPException(
                 status_code=403,
                 detail="无权访问数据库统计信息"
@@ -339,9 +334,8 @@ async def optimize_database(
     需要权限: system:backup 或 ADMIN角色
     """
     # 检查权限
-    if current_user.role != "admin":
-        user_permissions = []
-        if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_BACKUP):
+    user_permissions = get_user_permissions(current_user)
+    if not PermissionChecker.has_permission(user_permissions, Permission.SYSTEM_BACKUP):
             raise HTTPException(
                 status_code=403,
                 detail="无权优化数据库"

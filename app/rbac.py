@@ -56,6 +56,10 @@ class Permission(Enum):
     SYSTEM_CONFIGURE = "system:configure"
     SYSTEM_MONITOR = "system:monitor"
     SYSTEM_LOG = "system:log"
+    SYSTEM_BACKUP = "system:backup"
+    SYSTEM_RESTORE = "system:restore"
+    SYSTEM_OPTIMIZE = "system:optimize"
+    SYSTEM_ANALYZE = "system:analyze"
 
 
 # 定义角色枚举
@@ -94,6 +98,10 @@ ROLE_PERMISSIONS = {
         Permission.SYSTEM_CONFIGURE,
         Permission.SYSTEM_MONITOR,
         Permission.SYSTEM_LOG,
+        Permission.SYSTEM_BACKUP,
+        Permission.SYSTEM_RESTORE,
+        Permission.SYSTEM_OPTIMIZE,
+        Permission.SYSTEM_ANALYZE,
     ],
     Role.TRADER: [
         Permission.USER_READ,

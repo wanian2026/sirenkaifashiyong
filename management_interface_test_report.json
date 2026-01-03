@@ -1,0 +1,137 @@
+{
+  "timestamp": "2026-01-03T23:13:18.583715",
+  "summary": {
+    "total": 21,
+    "passed": 8,
+    "failed": 13,
+    "success_rate": 38.1
+  },
+  "results": [
+    {
+      "test": "健康检查",
+      "success": true,
+      "message": "状态码: 200",
+      "timestamp": "2026-01-03T23:13:17.792842"
+    },
+    {
+      "test": "用户登录",
+      "success": true,
+      "message": "获取到token",
+      "timestamp": "2026-01-03T23:13:18.119455"
+    },
+    {
+      "test": "机器人列表",
+      "success": true,
+      "message": "状态码: 200",
+      "timestamp": "2026-01-03T23:13:18.134825"
+    },
+    {
+      "test": "交易记录列表",
+      "success": false,
+      "message": "状态码: 500",
+      "timestamp": "2026-01-03T23:13:18.148126"
+    },
+    {
+      "test": "订单列表",
+      "success": true,
+      "message": "状态码: 200",
+      "timestamp": "2026-01-03T23:13:18.174732"
+    },
+    {
+      "test": "数据分析统计",
+      "success": true,
+      "message": "状态码: 200",
+      "timestamp": "2026-01-03T23:13:18.192648"
+    },
+    {
+      "test": "风险管理指标",
+      "success": false,
+      "message": "状态码: 404",
+      "timestamp": "2026-01-03T23:13:18.203634"
+    },
+    {
+      "test": "策略列表",
+      "success": false,
+      "message": "状态码: 404",
+      "timestamp": "2026-01-03T23:13:18.213185"
+    },
+    {
+      "test": "通知列表",
+      "success": false,
+      "message": "状态码: 404",
+      "timestamp": "2026-01-03T23:13:18.222973"
+    },
+    {
+      "test": "日志列表",
+      "success": false,
+      "message": "状态码: 404",
+      "timestamp": "2026-01-03T23:13:18.232366"
+    },
+    {
+      "test": "策略回测",
+      "success": false,
+      "message": "状态码: 422",
+      "timestamp": "2026-01-03T23:13:18.244936"
+    },
+    {
+      "test": "用户管理 - 用户列表",
+      "success": false,
+      "message": "状态码: 404",
+      "timestamp": "2026-01-03T23:13:18.254957"
+    },
+    {
+      "test": "用户管理 - 角色列表",
+      "success": true,
+      "message": "状态码: 200",
+      "timestamp": "2026-01-03T23:13:18.270008"
+    },
+    {
+      "test": "交易所管理 - 交易所列表",
+      "success": false,
+      "message": "状态码: 404",
+      "timestamp": "2026-01-03T23:13:18.280876"
+    },
+    {
+      "test": "交易所管理 - 获取配置",
+      "success": true,
+      "message": "状态码: 404",
+      "timestamp": "2026-01-03T23:13:18.290447"
+    },
+    {
+      "test": "交易所管理 - 测试连接",
+      "success": true,
+      "message": "状态码: 200",
+      "timestamp": "2026-01-03T23:13:18.527184"
+    },
+    {
+      "test": "审计日志 - 日志列表",
+      "success": false,
+      "message": "状态码: 404",
+      "timestamp": "2026-01-03T23:13:18.539250"
+    },
+    {
+      "test": "性能监控 - 性能指标",
+      "success": false,
+      "message": "状态码: 404",
+      "timestamp": "2026-01-03T23:13:18.549133"
+    },
+    {
+      "test": "性能监控 - API性能",
+      "success": false,
+      "message": "状态码: 404",
+      "timestamp": "2026-01-03T23:13:18.558365"
+    },
+    {
+      "test": "数据库管理 - 备份列表",
+      "success": false,
+      "message": "状态码: 403",
+      "timestamp": "2026-01-03T23:13:18.570828"
+    },
+    {
+      "test": "数据库管理 - 优化",
+      "success": false,
+      "message": "状态码: 403",
+      "timestamp": "2026-01-03T23:13:18.583654"
+    }
+  ]
+}
