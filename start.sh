@@ -1,56 +1,57 @@
 #!/bin/bash
 
-# 加密货币交易系统 - 启动脚本
-
-echo "=========================================="
-echo "  加密货币交易系统 - 启动中..."
-echo "=========================================="
+echo "🚀 启动加密货币交易系统"
 echo ""
 
-# 检查虚拟环境是否存在
+# 检查虚拟环境
 if [ ! -d "venv" ]; then
-    echo "错误: 虚拟环境不存在"
-    echo "请先运行: bash install.sh"
+    echo "❌ 虚拟环境不存在，请先运行 ./deploy.sh"
     exit 1
 fi
 
 # 激活虚拟环境
 source venv/bin/activate
 
-# 检查.env文件是否存在
-if [ ! -f ".env" ]; then
-    echo "警告: .env文件不存在"
-    echo "将使用默认配置启动"
+# 检查依赖
+echo "🔍 检查依赖..."
+if ! python -c "import fastapi" 2>/dev/null; then
+    echo "❌ 依赖未安装，请先运行 ./deploy.sh"
+    exit 1
 fi
 
-# 检查数据库是否存在
-if [ ! -f "crypto_bot.db" ]; then
-    echo "数据库文件不存在，正在初始化..."
-    python3 init_db.py
-    if [ $? -ne 0 ]; then
-        echo "错误: 数据库初始化失败"
-        exit 1
-    fi
+# 检查 PostgreSQL
+echo "🔍 检查 PostgreSQL..."
+if ! brew services list | grep postgresql | grep -q started; then
+    echo "⚠️  PostgreSQL 未运行，正在启动..."
+    brew services start postgresql@14
+    sleep 3
 fi
 
-# 启动服务
-echo "正在启动服务..."
-echo "=========================================="
+# 检查 Redis
+echo "🔍 检查 Redis..."
+if ! redis-cli ping &> /dev/null; then
+    echo "⚠️  Redis 未运行，正在启动..."
+    brew services start redis
+    sleep 3
+fi
+
+# 创建日志目录
+mkdir -p logs
+
+echo "✅ 所有检查通过"
+echo ""
+echo "================================================"
+echo "🚀 启动服务"
+echo "================================================"
 echo ""
 
-# 读取配置
-API_HOST=$(grep API_HOST .env | cut -d '=' -f2)
-API_PORT=$(grep API_PORT .env | cut -d '=' -f2)
-API_RELOAD=$(grep API_RELOAD .env | cut -d '=' -f2)
+# 启动服务
+echo "服务地址:"
+echo "  - API 文档: http://localhost:8000/docs"
+echo "  - 极简界面: http://localhost:8000/static/ultra_minimal.html"
+echo ""
+echo "按 Ctrl+C 停止服务"
+echo ""
 
-# 设置默认值
-API_HOST=${API_HOST:-0.0.0.0}
-API_PORT=${API_PORT:-8000}
-API_RELOAD=${API_RELOAD:-true}
-
-# 启动uvicorn
-if [ "$API_RELOAD" = "True" ] || [ "$API_RELOAD" = "true" ]; then
-    uvicorn app.main:app --host $API_HOST --port $API_PORT --reload
-else
-    uvicorn app.main:app --host $API_HOST --port $API_PORT
-fi
+# 使用 reload 模式启动（开发环境）
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
