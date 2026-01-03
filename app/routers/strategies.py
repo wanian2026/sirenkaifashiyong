@@ -261,10 +261,14 @@ async def generate_signal(
     try:
         if bot_id in running_strategies:
             strategy = running_strategies[bot_id]['strategy']
-            signal = strategy.generate_signal(current_price)
+            # 使用 update() 方法获取交易信号
+            result = strategy.update(current_price)
+            
+            # 返回信号和状态
             return {
                 "success": True,
-                "signal": signal
+                "signals": result.get('signals', []),
+                "status": result.get('status', '')
             }
         else:
             return {
