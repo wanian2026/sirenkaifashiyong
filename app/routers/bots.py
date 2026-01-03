@@ -749,3 +749,69 @@ async def clone_bot(
 
     return new_bot
 
+
+# ========== 批量启动/停止所有机器人 ==========
+
+@router.post("/start-all")
+async def start_all_bots(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """启动所有机器人"""
+    try:
+        # 获取用户所有停止的机器人
+        bots = db.query(TradingBot).filter(
+            TradingBot.user_id == current_user.id,
+            TradingBot.status == "stopped"
+        ).all()
+
+        bot_ids = [bot.id for bot in bots]
+
+        # 调用批量启动
+        batch_route_result = await batch_start_bots(
+            bot_ids=bot_ids,
+            current_user=current_user,
+            db=db
+        )
+
+        return batch_route_result
+
+    except Exception as e:
+        logger.error(f"启动所有机器人失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.post("/stop-all")
+async def stop_all_bots(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """停止所有机器人"""
+    try:
+        # 获取用户所有运行的机器人
+        bots = db.query(TradingBot).filter(
+            TradingBot.user_id == current_user.id,
+            TradingBot.status == "running"
+        ).all()
+
+        bot_ids = [bot.id for bot in bots]
+
+        # 调用批量停止
+        batch_route_result = await batch_stop_bots(
+            bot_ids=bot_ids,
+            current_user=current_user,
+            db=db
+        )
+
+        return batch_route_result
+
+    except Exception as e:
+        logger.error(f"停止所有机器人失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+

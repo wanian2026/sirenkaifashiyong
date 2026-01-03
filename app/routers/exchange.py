@@ -415,6 +415,32 @@ async def get_24h_stats(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/test")
+async def test():
+    """
+    测试交易所连接（兼容前端调用）
+
+    Returns:
+        连接状态信息
+    """
+    try:
+        exchange_api = get_exchange_api()
+        result = await exchange_api.test_connection()
+        return {
+            "success": True,
+            "message": "连接成功",
+            "exchange": settings.EXCHANGE_ID
+        }
+    except Exception as e:
+        logger.error(f"测试连接失败: {e}")
+        return {
+            "success": False,
+            "message": "连接失败",
+            "exchange": settings.EXCHANGE_ID,
+            "error": str(e)
+        }
+
+
 @router.get("/test-connection")
 async def test_connection():
     """

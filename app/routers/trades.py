@@ -15,6 +15,27 @@ from decimal import Decimal
 router = APIRouter()
 
 
+@router.get("/", response_model=List[TradeResponse])
+async def get_trades(
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    bot_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """获取当前用户的交易记录"""
+    query = db.query(Trade).join(TradingBot).filter(
+        TradingBot.user_id == current_user.id
+    )
+
+    if bot_id:
+        query = query.filter(Trade.bot_id == bot_id)
+
+    trades = query.order_by(Trade.created_at.desc()).offset(offset).limit(limit).all()
+
+    return trades
+
+
 @router.get("/bot/{bot_id}", response_model=List[TradeResponse])
 async def get_bot_trades(
     bot_id: int,

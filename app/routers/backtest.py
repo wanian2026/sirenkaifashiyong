@@ -27,7 +27,7 @@ router = APIRouter()
 
 @router.post("/run")
 async def run_backtest(
-    strategy_type: str = Query(..., regex="^(grid|martingale|mean_reversion)$"),
+    strategy_type: str = Query(..., regex="^(grid|hedge_grid|martingale|mean_reversion|momentum|code_a)$"),
     initial_capital: float = Query(10000, ge=100),
     start_date: datetime = Query(default_factory=lambda: datetime.now() - timedelta(days=30)),
     end_date: datetime = Query(default_factory=lambda: datetime.now()),
