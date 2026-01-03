@@ -966,51 +966,39 @@
             <div class="form-row">
                 <div class="form-group">
                     <label>策略类型</label>
-                    <select id="botStrategy"><option value="code_a">Code A策略</option></select>
+                    <select id="botStrategy"><option value="code_a">代号A策略</option></select>
                 </div>
                 <div class="form-group">
-                    <label>投资金额(USDT)</label>
+                    <label>单边投资金额(USDT)</label>
                     <input type="number" id="botInvestment" value="1000" oninput="calculateTradingCost()">
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>网格层数</label>
-                    <input type="number" id="botGridLevels" value="10">
+                    <label>上涨阈值(%)</label>
+                    <input type="number" id="botUpThreshold" value="2" step="0.1" oninput="calculateTradingCost()">
                 </div>
                 <div class="form-group">
-                    <label>网格间距(%)</label>
-                    <input type="number" id="botGridSpacing" value="2" step="0.1">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>阈值(%)</label>
-                    <input type="number" id="botThreshold" value="1" step="0.1">
-                </div>
-                <div class="form-group">
-                    <label>止损阈值(%)</label>
-                    <input type="number" id="botStopLoss" value="5" step="0.1" oninput="calculateTradingCost()">
+                    <label>下跌阈值(%)</label>
+                    <input type="number" id="botDownThreshold" value="2" step="0.1" oninput="calculateTradingCost()">
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>止盈阈值(%)</label>
-                    <input type="number" id="botTakeProfit" value="10" step="0.1">
-                </div>
-                <div class="form-group">
-                    <label>最大仓位(USDT)</label>
-                    <input type="number" id="botMaxPosition" value="10000" oninput="calculateTradingCost()">
+                    <label>止损比例(%)</label>
+                    <input type="number" id="botStopLoss" value="10" step="0.1" oninput="calculateTradingCost()">
                 </div>
             </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>手续费率(%)</label>
-                    <input type="number" id="botCommissionRate" value="0.1" step="0.01" oninput="calculateTradingCost()">
-                </div>
-                <div class="form-group">
-                    <label>滑点率(%)</label>
-                    <input type="number" id="botSlippageRate" value="0.05" step="0.01" oninput="calculateTradingCost()">
+            
+            <!-- 策略说明 -->
+            <div style="margin-top: 15px; padding: 12px; background: #f0f7ff; border: 1px solid #007bff; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold; color: #007bff;">📊 代号A策略说明</h4>
+                <div style="font-size: 12px; line-height: 1.6; color: #333;">
+                    <strong style="color: #007bff;">1. 初始设置：</strong>同时开一个多单和一个空单，形成对冲<br>
+                    <strong style="color: #007bff;">2. 上涨触发：</strong>价格 ≥ 多单成本价 × (1 + 上涨阈值) 时，平多开多<br>
+                    <strong style="color: #007bff;">3. 下跌触发：</strong>价格 ≤ 空单成本价 × (1 - 下跌阈值) 时，平空开空<br>
+                    <strong style="color: #007bff;">4. 止损机制：</strong>多单跌破止损线或空单突破止损线时强制平仓<br>
+                    <strong style="color: #007bff;">5. 亏损仓位：</strong>要么止损，要么等反弹达到阈值
                 </div>
             </div>
             
@@ -1019,36 +1007,36 @@
                 <h4 style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold;">💰 交易成本预估</h4>
                 <div class="form-row" style="margin-bottom: 8px;">
                     <div style="flex: 1;">
-                        <span style="font-size: 11px; color: #666;">投资金额:</span><br>
+                        <span style="font-size: 11px; color: #666;">单边投资金额:</span><br>
                         <strong id="costInvestment" style="font-size: 14px;">1000 USDT</strong>
                     </div>
                     <div style="flex: 1;">
-                        <span style="font-size: 11px; color: #666;">单笔手续费:</span><br>
-                        <strong id="costCommission" style="font-size: 14px;">1.00 USDT</strong>
-                    </div>
-                    <div style="flex: 1;">
-                        <span style="font-size: 11px; color: #666;">单笔滑点成本:</span><br>
-                        <strong id="costSlippage" style="font-size: 14px;">0.50 USDT</strong>
+                        <span style="font-size: 11px; color: #666;">双边总投入:</span><br>
+                        <strong id="costTotalInvestment" style="font-size: 14px; color: #007bff;">2000 USDT</strong>
                     </div>
                 </div>
                 <div class="form-row" style="margin-bottom: 8px;">
                     <div style="flex: 1;">
-                        <span style="font-size: 11px; color: #666;">止损预估损失:</span><br>
-                        <strong id="costStopLoss" style="font-size: 14px; color: #dc3545;">50.00 USDT (5.0%)</strong>
+                        <span style="font-size: 11px; color: #666;">多单止损预估:</span><br>
+                        <strong id="costLongStopLoss" style="font-size: 14px; color: #dc3545;">100.00 USDT</strong>
                     </div>
                     <div style="flex: 1;">
-                        <span style="font-size: 11px; color: #666;">最大持仓成本:</span><br>
-                        <strong id="costMaxPosition" style="font-size: 14px; color: #007bff;">10000 USDT</strong>
+                        <span style="font-size: 11px; color: #666;">空单止损预估:</span><br>
+                        <strong id="costShortStopLoss" style="font-size: 14px; color: #dc3545;">100.00 USDT</strong>
                     </div>
                 </div>
                 <div class="form-row">
                     <div style="flex: 1;">
-                        <span style="font-size: 11px; color: #666;">总预估成本(单次完整交易):</span><br>
-                        <strong id="costTotal" style="font-size: 16px; color: #dc3545;">103.00 USDT (10.3%)</strong>
+                        <span style="font-size: 11px; color: #666;">上涨触发价格:</span><br>
+                        <strong id="costUpTrigger" style="font-size: 14px; color: #28a745;">10200.00</strong>
+                    </div>
+                    <div style="flex: 1;">
+                        <span style="font-size: 11px; color: #666;">下跌触发价格:</span><br>
+                        <strong id="costDownTrigger" style="font-size: 14px; color: #28a745;">9800.00</strong>
                     </div>
                 </div>
                 <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 11px; color: #666;">
-                    ℹ️ <strong>说明：</strong>成本基于当前参数预估，实际成本可能因市场波动而变化
+                    ℹ️ <strong>说明：</strong>基于假设价格50000计算，实际触发价格会随市场价格变化
                 </div>
             </div>
             
@@ -1065,7 +1053,7 @@
             <h3>新建回测</h3>
             <div class="form-group">
                 <label>策略类型</label>
-                <select id="backtestStrategy"><option value="code_a">Code A策略</option></select>
+                <select id="backtestStrategy"><option value="code_a">代号A策略</option></select>
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -1089,12 +1077,22 @@
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>网格层数</label>
-                    <input type="number" id="backtestGridLevels" value="10">
+                    <label>上涨阈值(%)</label>
+                    <input type="number" id="backtestUpThreshold" value="2" step="0.1">
                 </div>
                 <div class="form-group">
-                    <label>网格间距(%)</label>
-                    <input type="number" id="backtestGridSpacing" value="2" step="0.1">
+                    <label>下跌阈值(%)</label>
+                    <input type="number" id="backtestDownThreshold" value="2" step="0.1">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>止损比例(%)</label>
+                    <input type="number" id="backtestStopLoss" value="10" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>投资金额(USDT)</label>
+                    <input type="number" id="backtestInvestment" value="1000">
                 </div>
             </div>
             <div class="modal-buttons">
@@ -1485,44 +1483,42 @@
         
         // 计算交易成本预估
         function calculateTradingCost() {
+            // 计算交易成本预估
             const investment = parseFloat(document.getElementById('botInvestment').value) || 0;
+            const upThresholdPercent = parseFloat(document.getElementById('botUpThreshold').value) || 0;
+            const downThresholdPercent = parseFloat(document.getElementById('botDownThreshold').value) || 0;
             const stopLossPercent = parseFloat(document.getElementById('botStopLoss').value) || 0;
-            const maxPosition = parseFloat(document.getElementById('botMaxPosition').value) || 0;
-            const commissionRate = parseFloat(document.getElementById('botCommissionRate').value) || 0;
-            const slippageRate = parseFloat(document.getElementById('botSlippageRate').value) || 0;
             
-            // 计算各项成本
-            const commission = investment * (commissionRate / 100); // 单笔手续费
-            const slippage = investment * (slippageRate / 100); // 单笔滑点成本
-            const stopLoss = investment * (stopLossPercent / 100); // 止损预估损失
+            // 假设当前价格（仅用于展示触发价格）
+            const currentPrice = 50000; // 假设价格
             
-            // 完整交易包含：买入(手续费+滑点) + 卖出(手续费+滑点) + 止损风险
-            // 实际上只有止损才会触发损失，这里按最坏情况预估
-            const totalCommission = commission * 2; // 买入和卖出
-            const totalSlippage = slippage * 2; // 买入和卖出
-            const totalCost = totalCommission + totalSlippage + stopLoss; // 总预估成本
-            const totalPercent = investment > 0 ? (totalCost / investment * 100) : 0;
+            // 计算双边投入
+            const totalInvestment = investment * 2;
+            
+            // 计算止损预估损失
+            const longStopLoss = investment * (stopLossPercent / 100);
+            const shortStopLoss = investment * (stopLossPercent / 100);
+            
+            // 计算触发价格
+            const upTriggerPrice = currentPrice * (1 + upThresholdPercent / 100);
+            const downTriggerPrice = currentPrice * (1 - downThresholdPercent / 100);
             
             // 更新显示
             document.getElementById('costInvestment').textContent = `${investment.toFixed(2)} USDT`;
-            document.getElementById('costCommission').textContent = `${commission.toFixed(2)} USDT`;
-            document.getElementById('costSlippage').textContent = `${slippage.toFixed(2)} USDT`;
-            document.getElementById('costStopLoss').textContent = `${stopLoss.toFixed(2)} USDT (${stopLossPercent.toFixed(1)}%)`;
-            document.getElementById('costMaxPosition').textContent = `${maxPosition.toFixed(2)} USDT`;
-            document.getElementById('costTotal').textContent = `${totalCost.toFixed(2)} USDT (${totalPercent.toFixed(1)}%)`;
+            document.getElementById('costTotalInvestment').textContent = `${totalInvestment.toFixed(2)} USDT`;
+            document.getElementById('costLongStopLoss').textContent = `${longStopLoss.toFixed(2)} USDT`;
+            document.getElementById('costShortStopLoss').textContent = `${shortStopLoss.toFixed(2)} USDT`;
+            document.getElementById('costUpTrigger').textContent = `${upTriggerPrice.toFixed(2)}`;
+            document.getElementById('costDownTrigger').textContent = `${downTriggerPrice.toFixed(2)}`;
         }
         
         async function createBot() {
             const config = {
+                trading_pair: document.getElementById('botSymbol').value,
                 investment_amount: parseFloat(document.getElementById('botInvestment').value),
-                grid_levels: parseInt(document.getElementById('botGridLevels').value),
-                grid_spacing: parseFloat(document.getElementById('botGridSpacing').value) / 100,
-                threshold: parseFloat(document.getElementById('botThreshold').value) / 100,
-                stop_loss_threshold: parseFloat(document.getElementById('botStopLoss').value) / 100,
-                take_profit_threshold: parseFloat(document.getElementById('botTakeProfit').value) / 100,
-                max_position: parseFloat(document.getElementById('botMaxPosition').value),
-                commission_rate: parseFloat(document.getElementById('botCommissionRate').value) / 100,
-                slippage_rate: parseFloat(document.getElementById('botSlippageRate').value) / 100
+                up_threshold: parseFloat(document.getElementById('botUpThreshold').value) / 100,
+                down_threshold: parseFloat(document.getElementById('botDownThreshold').value) / 100,
+                stop_loss: parseFloat(document.getElementById('botStopLoss').value) / 100
             };
             
             const data = {

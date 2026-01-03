@@ -33,17 +33,20 @@ async def list_strategy_types():
         "strategies": [
             {
                 "type": "code_a",
-                "name": "代码A策略",
-                "description": "基于技术分析的核心交易策略，结合趋势跟踪和均值回归",
+                "name": "代号A策略",
+                "description": "基于对冲马丁格尔的智能交易策略，通过同时持有多空双向仓位，利用价格波动进行高频交易获利",
                 "params": {
-                    "trend_period": "趋势判断周期（默认20）",
-                    "reversion_period": "均值回归周期（默认10）",
-                    "volatility_threshold": "波动率阈值（默认0.02）",
-                    "position_size": "单笔持仓比例（默认0.1）",
-                    "take_profit": "止盈百分比（默认0.05）",
-                    "stop_loss": "止损百分比（默认0.03）",
-                    "risk_limit": "单笔风险限制（默认0.02）",
-                    "investment_amount": "投资金额"
+                    "investment_amount": "单边投资金额（默认1000 USDT）",
+                    "up_threshold": "上涨阈值，触发平多开多（默认0.02，即2%）",
+                    "down_threshold": "下跌阈值，触发平空开空（默认0.02，即2%）",
+                    "stop_loss": "止损比例（默认0.10，即10%）"
+                },
+                "logic": {
+                    "initial": "初始同时开一个多单和一个空单",
+                    "up_trigger": "当价格 ≥ 多单成本价 × (1 + 上涨阈值) 时，平多开多",
+                    "down_trigger": "当价格 ≤ 空单成本价 × (1 - 下跌阈值) 时，平空开空",
+                    "stop_loss_long": "多单：价格 ≤ 成本价 × (1 - 止损比例) 时止损",
+                    "stop_loss_short": "空单：价格 ≥ 成本价 × (1 + 止损比例) 时止损"
                 }
             }
         ]
@@ -132,14 +135,10 @@ async def start_strategy(
         # 创建策略实例
         strategy = CodeAStrategy(
             trading_pair=config.get('trading_pair', 'BTC/USDT'),
-            investment_amount=config.get('investment_amount', 10000),
-            trend_period=config.get('trend_period', 20),
-            reversion_period=config.get('reversion_period', 10),
-            volatility_threshold=config.get('volatility_threshold', 0.02),
-            position_size=config.get('position_size', 0.1),
-            take_profit=config.get('take_profit', 0.05),
-            stop_loss=config.get('stop_loss', 0.03),
-            risk_limit=config.get('risk_limit', 0.02)
+            investment_amount=config.get('investment_amount', 1000),
+            up_threshold=config.get('up_threshold', 0.02),
+            down_threshold=config.get('down_threshold', 0.02),
+            stop_loss=config.get('stop_loss', 0.10)
         )
 
         # 存储策略实例

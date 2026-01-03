@@ -71,55 +71,56 @@ async def run_backtest(
         )
 
     # 创建回测配置
-    config = BacktestConfig(
-        initial_capital=initial_capital,
-        commission_rate=strategy_params.get('commission_rate', 0.001),
-        slippage_rate=strategy_params.get('slippage_rate', 0.0005),
-        start_date=start_date,
-        end_date=end_date
-    )
-
-    # 创建回测引擎
-    engine = BacktestEngine(config)
+    # 代号A策略使用自己的回测实现，不需要BacktestEngine
 
     # 执行代码A策略回测
-    strategy = CodeABacktestStrategy.execute
-
-    # 运行回测
     try:
-        result = engine.run_backtest(
-            data=data,
-            strategy=strategy,
-            strategy_params=strategy_params
-        )
+        trades_df = CodeABacktestStrategy.execute(data, strategy_params)
+        
+        # 计算回测结果
+        if len(trades_df) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="策略未产生任何交易"
+            )
+        
+        # 计算基本统计
+        total_profit = 0
+        total_loss = 0
+        win_trades = 0
+        lose_trades = 0
+        
+        for _, trade in trades_df.iterrows():
+            profit = trade.get('profit', 0)
+            if profit > 0:
+                total_profit += profit
+                win_trades += 1
+            elif profit < 0:
+                total_loss += abs(profit)
+                lose_trades += 1
+        
+        total_trades = len(trades_df)
+        win_rate = (win_trades / total_trades * 100) if total_trades > 0 else 0
+        
+        # 简化的性能指标
+        total_return = (total_profit - total_loss) / initial_capital if initial_capital > 0 else 0
+        
+        # 格式化交易数据
+        trades_data = []
+        for _, trade in trades_df.iterrows():
+            trades_data.append({
+                'timestamp': trade.get('timestamp', ''),
+                'action': trade.get('action', ''),
+                'price': trade.get('price', 0),
+                'amount': trade.get('amount', 0),
+                'profit': trade.get('profit', 0)
+            })
+        
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"回测执行失败: {str(e)}"
         )
-
-    # 格式化结果
-    trades_data = []
-    for trade in result.trades:
-        trades_data.append({
-            'timestamp': trade.timestamp.isoformat(),
-            'symbol': trade.symbol,
-            'action': trade.action,
-            'price': trade.price,
-            'amount': trade.amount,
-            'value': trade.value,
-            'commission': trade.commission,
-            'balance': trade.balance,
-            'position': trade.position
-        })
-
-    equity_curve_data = [
-        {
-            'timestamp': ts.isoformat(),
-            'equity': eq
-        }
-        for ts, eq in zip(result.timestamps, result.equity_curve)
-    ]
 
     return {
         'success': True,
@@ -128,33 +129,24 @@ async def run_backtest(
             'strategy_params': strategy_params,
             'initial_capital': initial_capital,
             'start_date': start_date.isoformat(),
-            'end_date': end_date.isoformat(),
-            'commission_rate': config.commission_rate,
-            'slippage_rate': config.slippage_rate
+            'end_date': end_date.isoformat()
         },
         'performance': {
-            'total_return': round(result.total_return * 100, 2),
-            'annual_return': round(result.annual_return * 100, 2),
-            'max_drawdown': round(result.max_drawdown * 100, 2),
-            'sharpe_ratio': round(result.sharpe_ratio, 2),
-            'sortino_ratio': round(result.sortino_ratio, 2),
-            'win_rate': round(result.win_rate * 100, 2),
-            'profit_factor': round(result.profit_factor, 2),
-            'avg_profit': round(result.avg_profit, 2),
-            'avg_loss': round(result.avg_loss, 2),
-            'max_profit': round(result.max_profit, 2),
-            'max_loss': round(result.max_loss, 2),
-            'volatility': round(result.volatility * 100, 2),
-            'var_95': round(result.var_95 * 100, 2),
-            'cvar_95': round(result.cvar_95 * 100, 2)
+            'total_return': round(total_return * 100, 2),
+            'total_profit': round(total_profit, 2),
+            'total_loss': round(total_loss, 2),
+            'net_profit': round(total_profit - total_loss, 2),
+            'win_rate': round(win_rate, 2),
+            'total_trades': total_trades,
+            'win_trades': win_trades,
+            'lose_trades': lose_trades
         },
         'trades': {
-            'total': result.total_trades,
-            'profitable': result.profitable_trades,
-            'losing': result.losing_trades,
+            'total': total_trades,
+            'profitable': win_trades,
+            'losing': lose_trades,
             'data': trades_data
-        },
-        'equity_curve': equity_curve_data
+        }
     }
 
 

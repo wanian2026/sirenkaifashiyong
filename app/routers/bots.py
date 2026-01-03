@@ -197,18 +197,27 @@ async def start_bot(
 
     # 创建策略实例
     config = json.loads(bot.config) if bot.config else {}
-    strategy = HedgeGridStrategy(
+    strategy = CodeAStrategy(
         trading_pair=bot.trading_pair,
-        grid_levels=config.get('grid_levels', 10),
-        grid_spacing=config.get('grid_spacing', 0.02),
         investment_amount=config.get('investment_amount', 1000),
-        dynamic_grid=config.get('dynamic_grid', False),
-        batch_build=config.get('batch_build', False),
-        batch_count=config.get('batch_count', 3)
+        up_threshold=config.get('up_threshold', 0.02),
+        down_threshold=config.get('down_threshold', 0.02),
+        stop_loss=config.get('stop_loss', 0.10)
     )
 
-    # 初始化网格
-    await strategy.initialize_grid()
+    # 初始化策略（需要初始价格，这里先传一个示例价格，实际应从市场获取）
+    # 注意：在实际运行中，应该从实时市场数据获取初始价格
+    # initial_price = get_current_market_price(bot.trading_pair)
+    # strategy.initialize(initial_price)
+    
+    # 暂时使用交易对估算初始价格
+    initial_price_map = {
+        'BTC/USDT': 50000,
+        'ETH/USDT': 3000,
+        'BNB/USDT': 400
+    }
+    initial_price = initial_price_map.get(bot.trading_pair, 50000)
+    strategy.initialize(initial_price)
 
     # 初始化风险管理器
     risk_manager = RiskManager(
