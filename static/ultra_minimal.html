@@ -288,6 +288,13 @@
                     <div class="toolbar-left">
                         <button class="btn" onclick="refreshOrders()">刷新</button>
                         <button class="btn" onclick="cancelAllOrders()">取消全部订单</button>
+                        <select id="orderStatusFilter" onchange="refreshOrders()">
+                            <option value="">全部状态</option>
+                            <option value="open">未成交</option>
+                            <option value="closed">已成交</option>
+                            <option value="canceled">已取消</option>
+                        </select>
+                        <select id="orderBotFilter" onchange="refreshOrders()"><option value="">全部机器人</option></select>
                     </div>
                 </div>
                 <table id="ordersTable">
@@ -399,13 +406,21 @@
                     <div class="toolbar-left">
                         <button class="btn" onclick="refreshAuditLogs()">刷新</button>
                         <select id="auditUserFilter" onchange="filterAuditLogs()"><option value="">全部用户</option></select>
+                        <select id="auditActionFilter" onchange="filterAuditLogs()">
+                            <option value="">全部操作</option>
+                            <option value="login">登录</option>
+                            <option value="bot_operation">机器人操作</option>
+                            <option value="order_operation">订单操作</option>
+                            <option value="config_change">配置变更</option>
+                        </select>
                         <input type="date" id="auditDateFilter" onchange="filterAuditLogs()">
-                        <button class="btn" onclick="exportAuditLogs()">导出</button>
+                        <button class="btn" onclick="exportAuditLogs()">导出CSV</button>
+                        <button class="btn" onclick="exportAuditLogsJSON()">导出JSON</button>
                     </div>
                 </div>
                 <table id="auditLogsTable">
                     <thead>
-                        <tr><th>时间</th><th>用户</th><th>操作</th><th>资源</th><th>IP地址</th><th>详情</th></tr>
+                        <tr><th>时间</th><th>用户</th><th>操作</th><th>资源</th><th>IP地址</th><th>操作</th></tr>
                     </thead>
                     <tbody></tbody>
                 </table>
@@ -457,7 +472,17 @@
                             <option value="INFO">INFO</option>
                             <option value="DEBUG">DEBUG</option>
                         </select>
+                        <select id="logModule" onchange="filterLogs()">
+                            <option value="">全部模块</option>
+                            <option value="bot">机器人</option>
+                            <option value="trading">交易</option>
+                            <option value="risk">风险</option>
+                            <option value="system">系统</option>
+                        </select>
+                        <input type="text" id="logKeyword" placeholder="搜索关键词..." onchange="filterLogs()" style="padding:4px;border:1px solid #ccc;">
                         <button class="btn" onclick="clearLogs()">清空日志</button>
+                        <button class="btn" onclick="archiveLogs()">归档日志</button>
+                        <button class="btn" onclick="downloadLogs()">下载日志</button>
                     </div>
                 </div>
                 <div class="log-container" id="logsContainer"></div>
@@ -469,28 +494,95 @@
                     <div class="toolbar-left">
                         <button class="btn btn-primary" onclick="showAddNotificationModal()">添加通知配置</button>
                         <button class="btn" onclick="testNotification()">测试通知</button>
+                        <button class="btn" onclick="refreshNotifications()">刷新</button>
                     </div>
                 </div>
+                <h3>通知渠道配置</h3>
                 <table id="notificationsTable">
                     <thead>
                         <tr><th>渠道</th><th>配置</th><th>状态</th><th>操作</th></tr>
                     </thead>
                     <tbody></tbody>
                 </table>
+                <h3>通知历史</h3>
+                <div style="max-height:300px;overflow-y:auto;border:1px solid #ddd;padding:10px;">
+                    <table id="notificationHistoryTable">
+                        <thead><tr><th>时间</th><th>渠道</th><th>类型</th><th>内容</th><th>状态</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
             
             <!-- 系统设置 -->
             <div id="settings" class="tab-content">
                 <h3>系统配置</h3>
-                <div class="form-group">
-                    <label>交易所API密钥</label>
-                    <input type="text" id="apiKey" placeholder="请输入API密钥">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>系统名称</label>
+                        <input type="text" id="systemName" placeholder="加密货币交易系统">
+                    </div>
+                    <div class="form-group">
+                        <label>时区</label>
+                        <select id="timezone">
+                            <option value="Asia/Shanghai">Asia/Shanghai</option>
+                            <option value="UTC">UTC</option>
+                            <option value="America/New_York">America/New_York</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>交易所API密钥</label>
-                    <input type="password" id="apiSecret" placeholder="请输入API密钥">
+                
+                <h3>交易所默认配置</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>默认交易所</label>
+                        <select id="defaultExchange">
+                            <option value="binance">Binance</option>
+                            <option value="okx">OKX</option>
+                            <option value="huobi">Huobi</option>
+                            <option value="bybit">Bybit</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>默认交易对</label>
+                        <input type="text" id="defaultSymbol" value="BTC/USDT">
+                    </div>
                 </div>
-                <button class="btn btn-primary" onclick="saveSettings()">保存配置</button>
+                
+                <h3>风险控制全局配置</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>最大仓位限制（USDT）</label>
+                        <input type="number" id="maxPosition" value="10000">
+                    </div>
+                    <div class="form-group">
+                        <label>单日最大亏损（USDT）</label>
+                        <input type="number" id="maxDailyLoss" value="1000">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>全局止损比例（%）</label>
+                        <input type="number" id="globalStopLoss" value="5" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>全局止盈比例（%）</label>
+                        <input type="number" id="globalTakeProfit" value="10" step="0.1">
+                    </div>
+                </div>
+                
+                <h3>系统优化建议</h3>
+                <div id="optimizationSuggestions" style="padding:10px;background:#f9f9f9;border:1px solid #ddd;margin-bottom:10px;">
+                    <p>点击"获取优化建议"按钮查看系统优化建议</p>
+                </div>
+                <button class="btn" onclick="getOptimizationSuggestions()">获取优化建议</button>
+                
+                <h3>操作</h3>
+                <div class="form-row">
+                    <button class="btn btn-primary" onclick="saveSettings()">保存配置</button>
+                    <button class="btn" onclick="resetSettings()">重置默认</button>
+                    <button class="btn" onclick="exportSettings()">导出配置</button>
+                    <button class="btn" onclick="importSettings()">导入配置</button>
+                </div>
             </div>
         </div>
     </div>
@@ -635,6 +727,130 @@
             <div class="modal-buttons">
                 <button class="btn" onclick="closeModal('createUserModal')">取消</button>
                 <button class="btn btn-primary" onclick="createUser()">创建</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加通知配置模态框 -->
+    <div id="addNotificationModal" class="modal">
+        <div class="modal-content">
+            <h3>添加通知配置</h3>
+            <div class="form-group">
+                <label>通知渠道</label>
+                <select id="notificationChannel" onchange="updateNotificationFields()">
+                    <option value="email">邮件</option>
+                    <option value="dingtalk">钉钉</option>
+                    <option value="feishu">飞书</option>
+                    <option value="telegram">Telegram</option>
+                    <option value="webhook">Webhook</option>
+                </select>
+            </div>
+            <div id="notificationEmailFields">
+                <div class="form-group">
+                    <label>SMTP服务器</label>
+                    <input type="text" id="smtpServer" placeholder="smtp.gmail.com">
+                </div>
+                <div class="form-group">
+                    <label>SMTP端口</label>
+                    <input type="number" id="smtpPort" value="587">
+                </div>
+                <div class="form-group">
+                    <label>发件人邮箱</label>
+                    <input type="email" id="senderEmail" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label>邮箱密码/授权码</label>
+                    <input type="password" id="emailPassword" placeholder="邮箱密码或应用专用密码">
+                </div>
+                <div class="form-group">
+                    <label>收件人邮箱</label>
+                    <input type="text" id="receiverEmail" placeholder="receiver@email.com">
+                </div>
+            </div>
+            <div id="notificationDingtalkFields" style="display:none;">
+                <div class="form-group">
+                    <label>钉钉Webhook URL</label>
+                    <input type="text" id="dingtalkWebhook" placeholder="https://oapi.dingtalk.com/robot/send?access_token=...">
+                </div>
+                <div class="form-group">
+                    <label>密钥（可选）</label>
+                    <input type="text" id="dingtalkSecret" placeholder="加签密钥">
+                </div>
+            </div>
+            <div id="notificationFeishuFields" style="display:none;">
+                <div class="form-group">
+                    <label>飞书Webhook URL</label>
+                    <input type="text" id="feishuWebhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/...">
+                </div>
+            </div>
+            <div id="notificationTelegramFields" style="display:none;">
+                <div class="form-group">
+                    <label>Bot Token</label>
+                    <input type="text" id="telegramBotToken" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11">
+                </div>
+                <div class="form-group">
+                    <label>Chat ID</label>
+                    <input type="text" id="telegramChatId" placeholder="123456789">
+                </div>
+            </div>
+            <div id="notificationWebhookFields" style="display:none;">
+                <div class="form-group">
+                    <label>Webhook URL</label>
+                    <input type="text" id="webhookUrl" placeholder="https://your-server.com/webhook">
+                </div>
+                <div class="form-group">
+                    <label>Headers (JSON)</label>
+                    <textarea id="webhookHeaders" rows="3" placeholder='{"Authorization": "Bearer xxx"}'></textarea>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>触发事件</label>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <label><input type="checkbox" value="trade" checked> 交易成交</label>
+                    <label><input type="checkbox" value="risk"> 风险预警</label>
+                    <label><input type="checkbox" value="system"> 系统异常</label>
+                    <label><input type="checkbox" value="bot"> 机器人启停</label>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="closeModal('addNotificationModal')">取消</button>
+                <button class="btn btn-primary" onclick="addNotification()">添加</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 创建策略模态框 -->
+    <div id="createStrategyModal" class="modal">
+        <div class="modal-content">
+            <h3>创建自定义策略</h3>
+            <div class="form-group">
+                <label>策略名称</label>
+                <input type="text" id="strategyName" placeholder="我的策略">
+            </div>
+            <div class="form-group">
+                <label>策略类型</label>
+                <select id="strategyType">
+                    <option value="custom">自定义</option>
+                    <option value="grid">网格策略</option>
+                    <option value="momentum">动量策略</option>
+                    <option value="mean_reversion">均值回归</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>策略描述</label>
+                <textarea id="strategyDescription" rows="3" placeholder="策略说明..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>策略参数（JSON）</label>
+                <textarea id="strategyParameters" rows="6" placeholder='{"grid_levels": 10, "grid_spacing": 0.02}'></textarea>
+            </div>
+            <div class="form-group">
+                <label>策略代码（Python）</label>
+                <textarea id="strategyCode" rows="10" placeholder="def strategy(context):&#10;    # 策略逻辑&#10;    pass"></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="closeModal('createStrategyModal')">取消</button>
+                <button class="btn btn-primary" onclick="createStrategy()">创建</button>
             </div>
         </div>
     </div>
@@ -1160,14 +1376,510 @@
             document.querySelector('#backtestsTable tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;">暂无回测记录</td></tr>';
         }
         
-        // 其他功能的简化实现
-        function refreshOrders() { document.querySelector('#ordersTable tbody').innerHTML = '<tr><td colspan="9" style="text-align:center;">暂无订单</td></tr>'; }
-        function refreshRisk() { document.querySelector('#riskTable tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;">暂无风险数据</td></tr>'; }
-        function refreshStrategies() { document.querySelector('#strategiesTable tbody').innerHTML = '<tr><td colspan="5" style="text-align:center;">暂无自定义策略</td></tr>'; }
-        function refreshAnalytics() { document.getElementById('analyticsContent').innerHTML = '<p style="text-align:center;padding:20px;">数据分析功能开发中...</p>'; }
-        function refreshAuditLogs() { document.querySelector('#auditLogsTable tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;">暂无审计日志</td></tr>'; }
-        function refreshLogs() { document.getElementById('logsContainer').innerHTML = '暂无日志记录'; }
-        function refreshNotifications() { document.querySelector('#notificationsTable tbody').innerHTML = '<tr><td colspan="4" style="text-align:center;">暂无通知配置</td></tr>'; }
+        // 订单管理（增强版）
+        async function refreshOrders() {
+            try {
+                const statusFilter = document.getElementById('orderStatusFilter')?.value || '';
+                const botFilter = document.getElementById('orderBotFilter')?.value || '';
+                
+                let url = `${API_BASE}/orders`;
+                const params = new URLSearchParams();
+                if (statusFilter) params.append('status', statusFilter);
+                if (botFilter) params.append('bot_id', botFilter);
+                if (params.toString()) url += '?' + params.toString();
+                
+                const res = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const orders = await res.json();
+                
+                const tbody = document.querySelector('#ordersTable tbody');
+                if (!orders || orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">暂无订单</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = orders.map(o => `
+                    <tr>
+                        <td>${o.id}</td>
+                        <td>${o.bot_name || '-'}</td>
+                        <td>${o.symbol || '-'}</td>
+                        <td>${o.order_type || '-'}</td>
+                        <td>${o.side || '-'}</td>
+                        <td>${o.price || '-'}</td>
+                        <td>${o.amount || '-'}</td>
+                        <td>${o.status || '-'}</td>
+                        <td>
+                            <button class="btn btn-danger" onclick="cancelOrder(${o.id})">取消</button>
+                            <button class="btn" onclick="viewOrderDetail(${o.id})">详情</button>
+                        </td>
+                    </tr>
+                `).join('');
+                
+                // 更新机器人筛选器
+                updateOrderBotFilter(orders);
+            } catch (e) {
+                console.error('刷新订单失败:', e);
+                document.querySelector('#ordersTable tbody').innerHTML = '<tr><td colspan="9" style="text-align:center;">加载失败</td></tr>';
+            }
+        }
+        
+        async function cancelOrder(orderId) {
+            if (!confirm('确定要取消这个订单吗？')) return;
+            try {
+                const res = await fetch(`${API_BASE}/orders/${orderId}/cancel`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    alert('订单已取消');
+                    refreshOrders();
+                } else {
+                    alert('取消失败');
+                }
+            } catch (e) {
+                alert('取消失败: ' + e.message);
+            }
+        }
+        
+        async function cancelAllOrders() {
+            if (!confirm('确定要取消所有订单吗？此操作不可撤销！')) return;
+            try {
+                const res = await fetch(`${API_BASE}/orders/cancel-all`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    alert('所有订单已取消');
+                    refreshOrders();
+                } else {
+                    alert('取消失败');
+                }
+            } catch (e) {
+                alert('取消失败: ' + e.message);
+            }
+        }
+        
+        function updateOrderBotFilter(orders) {
+            const botSelect = document.getElementById('orderBotFilter');
+            if (!botSelect) return;
+            
+            const bots = [...new Set(orders.map(o => o.bot_id).filter(id => id))];
+            const currentValue = botSelect.value;
+            botSelect.innerHTML = '<option value="">全部机器人</option>' + 
+                bots.map(id => `<option value="${id}">${id}</option>`).join('');
+            botSelect.value = currentValue;
+        }
+        
+        // 风险管理（增强版）
+        async function refreshRisk() {
+            try {
+                const res = await fetch(`${API_BASE}/risk/overview`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const riskData = await res.json();
+                
+                // 风险概览统计
+                if (riskData.stats) {
+                    document.getElementById('riskStats').innerHTML = `
+                        <div class="stat-box"><strong>${(riskData.stats.total_value || 0).toFixed(2)}</strong><span>账户总价值(USDT)</span></div>
+                        <div class="stat-box"><strong class="${riskData.stats.total_unrealized_pnl >= 0 ? 'profit-pos' : 'profit-neg'}">${(riskData.stats.total_unrealized_pnl || 0).toFixed(2)}</strong><span>未实现盈亏</span></div>
+                        <div class="stat-box"><strong>${riskData.stats.total_positions || 0}</strong><span>持仓数量</span></div>
+                        <div class="stat-box"><strong>${riskData.stats.risk_level || '低'}</strong><span>风险等级</span></div>
+                        <div class="stat-box"><strong>${(riskData.stats.max_drawdown || 0).toFixed(2)}%</strong><span>最大回撤</span></div>
+                        <div class="stat-box"><strong>${(riskData.stats.sharpe_ratio || 0).toFixed(2)}</strong><span>夏普比率</span></div>
+                    `;
+                }
+                
+                // 持仓风险详情
+                if (riskData.positions && riskData.positions.length > 0) {
+                    const tbody = document.querySelector('#riskTable tbody');
+                    tbody.innerHTML = riskData.positions.map(p => `
+                        <tr>
+                            <td>${p.bot_name || '-'}</td>
+                            <td>${(p.position_value || 0).toFixed(2)}</td>
+                            <td class="${p.unrealized_pnl >= 0 ? 'profit-pos' : 'profit-neg'}">${(p.unrealized_pnl || 0).toFixed(2)}</td>
+                            <td>${p.risk_level || '-'}</td>
+                            <td>${p.position_limit || '-'}</td>
+                            <td>
+                                <button class="btn" onclick="editStopLoss('${p.bot_id}')">止损</button>
+                                <button class="btn" onclick="editTakeProfit('${p.bot_id}')">止盈</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    document.querySelector('#riskTable tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;">暂无持仓</td></tr>';
+                }
+            } catch (e) {
+                console.error('刷新风险数据失败:', e);
+                document.querySelector('#riskTable tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;">加载失败</td></tr>';
+            }
+        }
+        
+        async function editStopLoss(botId) {
+            const value = prompt('请输入止损价格（留空则不设置）：');
+            if (value === null) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/risk/stop-loss`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ bot_id: botId, stop_loss: value ? parseFloat(value) : null })
+                });
+                if (res.ok) {
+                    alert('止损设置成功');
+                    refreshRisk();
+                } else {
+                    alert('设置失败');
+                }
+            } catch (e) {
+                alert('设置失败: ' + e.message);
+            }
+        }
+        
+        async function editTakeProfit(botId) {
+            const value = prompt('请输入止盈价格（留空则不设置）：');
+            if (value === null) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/risk/take-profit`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ bot_id: botId, take_profit: value ? parseFloat(value) : null })
+                });
+                if (res.ok) {
+                    alert('止盈设置成功');
+                    refreshRisk();
+                } else {
+                    alert('设置失败');
+                }
+            } catch (e) {
+                alert('设置失败: ' + e.message);
+            }
+        }
+        
+        async function closeAllPositions() {
+            if (!confirm('确定要平仓所有持仓吗？此操作不可撤销！')) return;
+            try {
+                const res = await fetch(`${API_BASE}/risk/close-all`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    alert('所有持仓已平仓');
+                    refreshRisk();
+                } else {
+                    alert('平仓失败');
+                }
+            } catch (e) {
+                alert('平仓失败: ' + e.message);
+            }
+        }
+        
+        // 高级策略（增强版）
+        async function refreshStrategies() {
+            try {
+                const res = await fetch(`${API_BASE}/strategies`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const strategies = await res.json();
+                
+                const tbody = document.querySelector('#strategiesTable tbody');
+                if (!strategies || strategies.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">暂无自定义策略</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = strategies.map(s => `
+                    <tr>
+                        <td>${s.id}</td>
+                        <td>${s.name}</td>
+                        <td>${s.type}</td>
+                        <td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;">${JSON.stringify(s.parameters || {})}</td>
+                        <td>${s.status || 'active'}</td>
+                        <td>
+                            <button class="btn" onclick="editStrategy(${s.id})">编辑</button>
+                            <button class="btn" onclick="backtestStrategy(${s.id})">回测</button>
+                            <button class="btn" onclick="exportStrategy(${s.id})">导出</button>
+                            <button class="btn btn-danger" onclick="deleteStrategy(${s.id})">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('刷新策略失败:', e);
+                document.querySelector('#strategiesTable tbody').innerHTML = '<tr><td colspan="5" style="text-align:center;">加载失败</td></tr>';
+            }
+        }
+        
+        // 数据分析（增强版）
+        async function refreshAnalytics() {
+            const type = document.getElementById('analyticsType')?.value || 'overview';
+            
+            try {
+                const res = await fetch(`${API_BASE}/analytics/${type}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                
+                let content = '';
+                
+                if (type === 'overview') {
+                    content = `
+                        <div class="stats">
+                            <div class="stat-box"><strong>${(data.total_profit || 0).toFixed(2)}</strong><span>总利润(USDT)</span></div>
+                            <div class="stat-box"><strong>${(data.total_trades || 0)}</strong><span>总交易次数</span></div>
+                            <div class="stat-box"><strong>${(data.win_rate || 0).toFixed(2)}%</strong><span>胜率</span></div>
+                            <div class="stat-box"><strong>${(data.avg_profit_per_trade || 0).toFixed(2)}</strong><span>平均每笔利润</span></div>
+                        </div>
+                        <h3>收益趋势（近30天）</h3>
+                        <div style="padding:20px;text-align:center;color:#999;border:1px solid #ddd;background:#f9f9f9;">
+                            收益曲线图表区域<br>
+                            <small>建议集成 ECharts 或 Chart.js</small>
+                        </div>
+                    `;
+                } else if (type === 'performance') {
+                    content = `
+                        <h3>性能分析</h3>
+                        <table>
+                            <thead><tr><th>指标</th><th>数值</th></tr></thead>
+                            <tbody>
+                                <tr><td>年化收益率</td><td>${(data.annual_return || 0).toFixed(2)}%</td></tr>
+                                <tr><td>夏普比率</td><td>${(data.sharpe_ratio || 0).toFixed(2)}</td></tr>
+                                <tr><td>最大回撤</td><td>${(data.max_drawdown || 0).toFixed(2)}%</td></tr>
+                                <tr><td>Sortino比率</td><td>${(data.sortino_ratio || 0).toFixed(2)}</td></tr>
+                                <tr><td>Calmar比率</td><td>${(data.calmar_ratio || 0).toFixed(2)}</td></tr>
+                                <tr><td>波动率</td><td>${(data.volatility || 0).toFixed(2)}%</td></tr>
+                            </tbody>
+                        </table>
+                    `;
+                } else if (type === 'trend') {
+                    content = `
+                        <h3>趋势分析</h3>
+                        <table>
+                            <thead><tr><th>交易对</th><th>趋势方向</th><th>强度</th><th>支撑位</th><th>阻力位</th></tr></thead>
+                            <tbody>
+                                ${(data.trends || []).map(t => `
+                                    <tr>
+                                        <td>${t.symbol || '-'}</td>
+                                        <td class="${t.direction === 'bullish' ? 'profit-pos' : 'profit-neg'}">${t.direction || '-'}</td>
+                                        <td>${t.strength || '-'}</td>
+                                        <td>${t.support || '-'}</td>
+                                        <td>${t.resistance || '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+                
+                document.getElementById('analyticsContent').innerHTML = content;
+            } catch (e) {
+                console.error('刷新分析数据失败:', e);
+                document.getElementById('analyticsContent').innerHTML = '<p style="text-align:center;padding:20px;">加载失败</p>';
+            }
+        }
+        
+        // 审计日志（增强版）
+        async function refreshAuditLogs() {
+            try {
+                const userFilter = document.getElementById('auditUserFilter')?.value || '';
+                const dateFilter = document.getElementById('auditDateFilter')?.value || '';
+                const actionFilter = document.getElementById('auditActionFilter')?.value || '';
+                
+                let url = `${API_BASE}/audit-logs`;
+                const params = new URLSearchParams();
+                if (userFilter) params.append('user_id', userFilter);
+                if (dateFilter) params.append('date', dateFilter);
+                if (actionFilter) params.append('action_type', actionFilter);
+                if (params.toString()) url += '?' + params.toString();
+                
+                const res = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const logs = await res.json();
+                
+                const tbody = document.querySelector('#auditLogsTable tbody');
+                if (!logs || logs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">暂无审计日志</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = logs.map(l => `
+                    <tr>
+                        <td>${new Date(l.created_at).toLocaleString()}</td>
+                        <td>${l.username || '-'}</td>
+                        <td>${l.action || '-'}</td>
+                        <td>${l.resource || '-'}</td>
+                        <td>${l.ip_address || '-'}</td>
+                        <td><button class="btn" onclick="viewAuditLogDetail(${l.id})">详情</button></td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('刷新审计日志失败:', e);
+                document.querySelector('#auditLogsTable tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;">加载失败</td></tr>';
+            }
+        }
+        
+        async function exportAuditLogs() {
+            try {
+                const res = await fetch(`${API_BASE}/audit-logs/export`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.csv`;
+                    a.click();
+                    alert('导出成功');
+                } else {
+                    alert('导出失败');
+                }
+            } catch (e) {
+                alert('导出失败: ' + e.message);
+            }
+        }
+        
+        function filterAuditLogs() {
+            refreshAuditLogs();
+        }
+        
+        // 日志管理（增强版）
+        async function refreshLogs() {
+            try {
+                const level = document.getElementById('logLevel')?.value || '';
+                const module = document.getElementById('logModule')?.value || '';
+                const keyword = document.getElementById('logKeyword')?.value || '';
+                
+                let url = `${API_BASE}/log-manager/logs`;
+                const params = new URLSearchParams();
+                if (level) params.append('level', level);
+                if (module) params.append('module', module);
+                if (keyword) params.append('keyword', keyword);
+                if (params.toString()) url += '?' + params.toString();
+                
+                const res = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const logs = await res.json();
+                
+                if (!logs || logs.length === 0) {
+                    document.getElementById('logsContainer').innerHTML = '暂无日志记录';
+                    return;
+                }
+                
+                document.getElementById('logsContainer').innerHTML = logs.map(l => 
+                    `[${l.timestamp}] [${l.level}] [${l.module}] ${l.message}`
+                ).join('\n');
+            } catch (e) {
+                console.error('刷新日志失败:', e);
+                document.getElementById('logsContainer').innerHTML = '加载失败';
+            }
+        }
+        
+        function filterLogs() {
+            refreshLogs();
+        }
+        
+        async function clearLogs() {
+            if (!confirm('确定要清空所有日志吗？')) return;
+            try {
+                const res = await fetch(`${API_BASE}/log-manager/clear`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    alert('日志已清空');
+                    refreshLogs();
+                } else {
+                    alert('清空失败');
+                }
+            } catch (e) {
+                alert('清空失败: ' + e.message);
+            }
+        }
+        
+        async function archiveLogs() {
+            try {
+                const res = await fetch(`${API_BASE}/log-manager/archive`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    alert('日志归档成功');
+                } else {
+                    alert('归档失败');
+                }
+            } catch (e) {
+                alert('归档失败: ' + e.message);
+            }
+        }
+        
+        // 通知管理（增强版）
+        async function refreshNotifications() {
+            try {
+                const res = await fetch(`${API_BASE}/notifications`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const notifications = await res.json();
+                
+                const tbody = document.querySelector('#notificationsTable tbody');
+                if (!notifications || notifications.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">暂无通知配置</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = notifications.map(n => `
+                    <tr>
+                        <td>${n.channel || '-'}</td>
+                        <td style="font-size:11px;max-width:300px;overflow:hidden;text-overflow:ellipsis;">${JSON.stringify(n.config || {})}</td>
+                        <td>${n.enabled ? '启用' : '禁用'}</td>
+                        <td>
+                            <button class="btn" onclick="testNotificationByChannel('${n.channel}')">测试</button>
+                            <button class="btn" onclick="editNotification('${n.id}')">编辑</button>
+                            <button class="btn btn-danger" onclick="deleteNotification('${n.id}')">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('刷新通知配置失败:', e);
+                document.querySelector('#notificationsTable tbody').innerHTML = '<tr><td colspan="4" style="text-align:center;">加载失败</td></tr>';
+            }
+        }
+        
+        async function testNotification() {
+            const channel = prompt('请输入通知渠道（email/dingtalk/feishu/telegram/webhook）：');
+            if (!channel) return;
+            await testNotificationByChannel(channel);
+        }
+        
+        async function testNotificationByChannel(channel) {
+            try {
+                const res = await fetch(`${API_BASE}/notifications/test`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ channel: channel })
+                });
+                if (res.ok) {
+                    alert('测试通知已发送');
+                } else {
+                    alert('发送失败');
+                }
+            } catch (e) {
+                alert('发送失败: ' + e.message);
+            }
+        }
         
         // 导出功能
         async function exportTrades() {
@@ -1184,7 +1896,583 @@
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('backtestEndTime').value = today;
             document.getElementById('backtestStartTime').value = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
+            
+            // 尝试连接WebSocket
+            connectWebSocket();
         });
+        
+        // WebSocket实时数据
+        let ws = null;
+        let wsReconnectAttempts = 0;
+        
+        function connectWebSocket() {
+            try {
+                ws = new WebSocket('ws://localhost:8000/ws');
+                
+                ws.onopen = () => {
+                    console.log('WebSocket connected');
+                    wsReconnectAttempts = 0;
+                    
+                    // 订阅所有数据流
+                    ws.send(JSON.stringify({
+                        action: 'subscribe',
+                        topics: ['bot_status', 'market_data', 'kline_data', 'trade_data', 'account_update']
+                    }));
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleWebSocketMessage(data);
+                    } catch (e) {
+                        console.error('WebSocket message parse error:', e);
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                };
+                
+                ws.onclose = () => {
+                    console.log('WebSocket disconnected');
+                    // 尝试重连
+                    if (wsReconnectAttempts < 5) {
+                        wsReconnectAttempts++;
+                        setTimeout(connectWebSocket, 5000);
+                    }
+                };
+            } catch (e) {
+                console.error('WebSocket connection failed:', e);
+            }
+        }
+        
+        function handleWebSocketMessage(data) {
+            switch (data.topic) {
+                case 'bot_status':
+                    updateBotStatus(data.data);
+                    break;
+                case 'market_data':
+                    updateMarketData(data.data);
+                    break;
+                case 'trade_data':
+                    addNewTrade(data.data);
+                    break;
+                case 'account_update':
+                    updateAccountInfo(data.data);
+                    break;
+            }
+        }
+        
+        function updateBotStatus(botData) {
+            // 更新机器人状态
+            if (botData && botData.bot_id) {
+                const statusCell = document.querySelector(`#botsTable tbody tr[data-bot-id="${botData.bot_id}"] .status-cell`);
+                if (statusCell) {
+                    statusCell.textContent = botData.status;
+                    statusCell.className = botData.status === 'running' ? 'status-running' : 'status-stopped';
+                }
+            }
+        }
+        
+        function addNewTrade(tradeData) {
+            // 添加新交易记录到表格
+            if (tradeData) {
+                const tbody = document.querySelector('#recentTrades tbody');
+                const newRow = document.createElement('tr');
+                newRow.innerHTML = `
+                    <td>${new Date().toLocaleString()}</td>
+                    <td>${tradeData.bot_name || '-'}</td>
+                    <td>${tradeData.symbol || '-'}</td>
+                    <td>${tradeData.side || '-'}</td>
+                    <td>${tradeData.price || '-'}</td>
+                    <td>${tradeData.amount || '-'}</td>
+                    <td class="${tradeData.profit >= 0 ? 'profit-pos' : 'profit-neg'}">${tradeData.profit || '-'}</td>
+                `;
+                tbody.insertBefore(newRow, tbody.firstChild);
+                
+                // 保持最多10条记录
+                while (tbody.children.length > 10) {
+                    tbody.removeChild(tbody.lastChild);
+                }
+            }
+        }
+        
+        function updateMarketData(marketData) {
+            // 更新市场数据显示
+            console.log('Market data update:', marketData);
+        }
+        
+        function updateAccountInfo(accountData) {
+            // 更新账户信息
+            if (accountData && document.getElementById('dashboardStats')) {
+                // 可以在这里更新仪表盘上的账户信息
+            }
+        }
+        
+        // 通知管理函数
+        function showAddNotificationModal() {
+            document.getElementById('addNotificationModal').classList.add('active');
+            updateNotificationFields();
+        }
+        
+        function updateNotificationFields() {
+            const channel = document.getElementById('notificationChannel').value;
+            
+            // 隐藏所有字段
+            document.getElementById('notificationEmailFields').style.display = 'none';
+            document.getElementById('notificationDingtalkFields').style.display = 'none';
+            document.getElementById('notificationFeishuFields').style.display = 'none';
+            document.getElementById('notificationTelegramFields').style.display = 'none';
+            document.getElementById('notificationWebhookFields').style.display = 'none';
+            
+            // 显示对应字段
+            switch (channel) {
+                case 'email':
+                    document.getElementById('notificationEmailFields').style.display = 'block';
+                    break;
+                case 'dingtalk':
+                    document.getElementById('notificationDingtalkFields').style.display = 'block';
+                    break;
+                case 'feishu':
+                    document.getElementById('notificationFeishuFields').style.display = 'block';
+                    break;
+                case 'telegram':
+                    document.getElementById('notificationTelegramFields').style.display = 'block';
+                    break;
+                case 'webhook':
+                    document.getElementById('notificationWebhookFields').style.display = 'block';
+                    break;
+            }
+        }
+        
+        async function addNotification() {
+            const channel = document.getElementById('notificationChannel').value;
+            const config = {};
+            
+            // 收集触发事件
+            const events = [];
+            document.querySelectorAll('#addNotificationModal input[type="checkbox"]:checked').forEach(cb => {
+                events.push(cb.value);
+            });
+            
+            // 根据渠道收集配置
+            switch (channel) {
+                case 'email':
+                    config.smtp_server = document.getElementById('smtpServer').value;
+                    config.smtp_port = parseInt(document.getElementById('smtpPort').value);
+                    config.sender_email = document.getElementById('senderEmail').value;
+                    config.email_password = document.getElementById('emailPassword').value;
+                    config.receiver_email = document.getElementById('receiverEmail').value;
+                    break;
+                case 'dingtalk':
+                    config.webhook_url = document.getElementById('dingtalkWebhook').value;
+                    config.secret = document.getElementById('dingtalkSecret').value;
+                    break;
+                case 'feishu':
+                    config.webhook_url = document.getElementById('feishuWebhook').value;
+                    break;
+                case 'telegram':
+                    config.bot_token = document.getElementById('telegramBotToken').value;
+                    config.chat_id = document.getElementById('telegramChatId').value;
+                    break;
+                case 'webhook':
+                    config.url = document.getElementById('webhookUrl').value;
+                    try {
+                        config.headers = JSON.parse(document.getElementById('webhookHeaders').value);
+                    } catch (e) {
+                        alert('Headers格式错误，请使用正确的JSON格式');
+                        return;
+                    }
+                    break;
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE}/notifications`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        channel: channel,
+                        config: config,
+                        events: events,
+                        enabled: true
+                    })
+                });
+                
+                if (res.ok) {
+                    alert('通知配置添加成功');
+                    closeModal('addNotificationModal');
+                    refreshNotifications();
+                } else {
+                    alert('添加失败');
+                }
+            } catch (e) {
+                alert('添加失败: ' + e.message);
+            }
+        }
+        
+        // 策略管理函数
+        function showCreateStrategyModal() {
+            document.getElementById('createStrategyModal').classList.add('active');
+        }
+        
+        async function createStrategy() {
+            const data = {
+                name: document.getElementById('strategyName').value,
+                type: document.getElementById('strategyType').value,
+                description: document.getElementById('strategyDescription').value,
+                parameters: JSON.parse(document.getElementById('strategyParameters').value || '{}'),
+                code: document.getElementById('strategyCode').value
+            };
+            
+            try {
+                const res = await fetch(`${API_BASE}/strategies`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (res.ok) {
+                    alert('策略创建成功');
+                    closeModal('createStrategyModal');
+                    refreshStrategies();
+                } else {
+                    alert('创建失败');
+                }
+            } catch (e) {
+                alert('创建失败: ' + e.message);
+            }
+        }
+        
+        async function editStrategy(strategyId) {
+            alert(`编辑策略功能开发中，策略ID: ${strategyId}`);
+        }
+        
+        async function deleteStrategy(strategyId) {
+            if (!confirm('确定要删除这个策略吗？')) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/strategies/${strategyId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    alert('策略已删除');
+                    refreshStrategies();
+                } else {
+                    alert('删除失败');
+                }
+            } catch (e) {
+                alert('删除失败: ' + e.message);
+            }
+        }
+        
+        async function exportStrategy(strategyId) {
+            alert(`导出策略功能开发中，策略ID: ${strategyId}`);
+        }
+        
+        async function backtestStrategy(strategyId) {
+            alert(`回测策略功能开发中，策略ID: ${strategyId}`);
+        }
+        
+        // 系统设置函数
+        async function saveSettings() {
+            const settings = {
+                system_name: document.getElementById('systemName').value,
+                timezone: document.getElementById('timezone').value,
+                default_exchange: document.getElementById('defaultExchange').value,
+                default_symbol: document.getElementById('defaultSymbol').value,
+                max_position: parseFloat(document.getElementById('maxPosition').value),
+                max_daily_loss: parseFloat(document.getElementById('maxDailyLoss').value),
+                global_stop_loss: parseFloat(document.getElementById('globalStopLoss').value) / 100,
+                global_take_profit: parseFloat(document.getElementById('globalTakeProfit').value) / 100
+            };
+            
+            try {
+                const res = await fetch(`${API_BASE}/settings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(settings)
+                });
+                
+                if (res.ok) {
+                    alert('配置保存成功');
+                } else {
+                    alert('保存失败');
+                }
+            } catch (e) {
+                alert('保存失败: ' + e.message);
+            }
+        }
+        
+        async function resetSettings() {
+            if (!confirm('确定要重置为默认配置吗？')) return;
+            
+            document.getElementById('systemName').value = '加密货币交易系统';
+            document.getElementById('timezone').value = 'Asia/Shanghai';
+            document.getElementById('defaultExchange').value = 'binance';
+            document.getElementById('defaultSymbol').value = 'BTC/USDT';
+            document.getElementById('maxPosition').value = '10000';
+            document.getElementById('maxDailyLoss').value = '1000';
+            document.getElementById('globalStopLoss').value = '5';
+            document.getElementById('globalTakeProfit').value = '10';
+            
+            alert('已重置为默认配置');
+        }
+        
+        async function exportSettings() {
+            try {
+                const res = await fetch(`${API_BASE}/settings/export`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `settings_${new Date().toISOString().split('T')[0]}.json`;
+                    a.click();
+                    alert('导出成功');
+                } else {
+                    alert('导出失败');
+                }
+            } catch (e) {
+                alert('导出失败: ' + e.message);
+            }
+        }
+        
+        function importSettings() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    const res = await fetch(`${API_BASE}/settings/import`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${authToken}` },
+                        body: formData
+                    });
+                    
+                    if (res.ok) {
+                        alert('导入成功，请刷新页面');
+                        location.reload();
+                    } else {
+                        alert('导入失败');
+                    }
+                } catch (err) {
+                    alert('导入失败: ' + err.message);
+                }
+            };
+            input.click();
+        }
+        
+        async function getOptimizationSuggestions() {
+            try {
+                const res = await fetch(`${API_BASE}/optimize/suggestions`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                
+                const suggestions = data.suggestions || [];
+                if (suggestions.length > 0) {
+                    document.getElementById('optimizationSuggestions').innerHTML = `
+                        <ul style="margin-left:20px;">
+                            ${suggestions.map(s => `<li>${s}</li>`).join('')}
+                        </ul>
+                    `;
+                } else {
+                    document.getElementById('optimizationSuggestions').innerHTML = '<p>系统运行良好，暂无优化建议</p>';
+                }
+            } catch (e) {
+                document.getElementById('optimizationSuggestions').innerHTML = '<p>获取优化建议失败</p>';
+            }
+        }
+        
+        // 其他辅助函数
+        async function downloadLogs() {
+            try {
+                const res = await fetch(`${API_BASE}/log-manager/download`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `logs_${new Date().toISOString().split('T')[0]}.txt`;
+                    a.click();
+                    alert('下载成功');
+                } else {
+                    alert('下载失败');
+                }
+            } catch (e) {
+                alert('下载失败: ' + e.message);
+            }
+        }
+        
+        function viewBotStatus(botId) {
+            alert(`查看机器人状态功能开发中，机器人ID: ${botId}`);
+        }
+        
+        function viewOrderDetail(orderId) {
+            alert(`查看订单详情功能开发中，订单ID: ${orderId}`);
+        }
+        
+        function viewAuditLogDetail(logId) {
+            alert(`查看审计日志详情功能开发中，日志ID: ${logId}`);
+        }
+        
+        async function testExchange(exchangeId) {
+            try {
+                const res = await fetch(`${API_BASE}/exchange/${exchangeId}/test`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (res.ok) {
+                    alert('连接测试成功！');
+                } else {
+                    alert('连接测试失败');
+                }
+            } catch (e) {
+                alert('测试失败: ' + e.message);
+            }
+        }
+        
+        async function deleteExchange(exchangeId) {
+            if (!confirm('确定要删除这个交易所配置吗？')) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/exchange/${exchangeId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    alert('交易所已删除');
+                    refreshExchanges();
+                } else {
+                    alert('删除失败');
+                }
+            } catch (e) {
+                alert('删除失败: ' + e.message);
+            }
+        }
+        
+        function testAllExchanges() {
+            alert('批量测试连接功能开发中');
+        }
+        
+        async function deleteBackup(filename) {
+            if (!confirm(`确定要删除备份文件 ${filename} 吗？`)) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/database-manager/backup/${filename}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    alert('备份已删除');
+                    refreshDatabase();
+                } else {
+                    alert('删除失败');
+                }
+            } catch (e) {
+                alert('删除失败: ' + e.message);
+            }
+        }
+        
+        function editUser(userId) {
+            alert(`编辑用户功能开发中，用户ID: ${userId}`);
+        }
+        
+        async function deleteUser(userId) {
+            if (!confirm('确定要删除这个用户吗？')) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/rbac/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    alert('用户已删除');
+                    refreshUsers();
+                } else {
+                    alert('删除失败');
+                }
+            } catch (e) {
+                alert('删除失败: ' + e.message);
+            }
+        }
+        
+        function restoreBackup(filename) {
+            if (!confirm(`确定要从备份 ${filename} 恢复数据库吗？此操作不可撤销！`)) return;
+            alert('数据库恢复功能开发中');
+        }
+        
+        function analyzeDatabase() {
+            alert('数据库分析功能开发中');
+        }
+        
+        async function exportAuditLogsJSON() {
+            try {
+                const res = await fetch(`${API_BASE}/audit-logs/export?format=json`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.json`;
+                    a.click();
+                    alert('导出成功');
+                } else {
+                    alert('导出失败');
+                }
+            } catch (e) {
+                alert('导出失败: ' + e.message);
+            }
+        }
+        
+        function editNotification(notificationId) {
+            alert(`编辑通知配置功能开发中，ID: ${notificationId}`);
+        }
+        
+        async function deleteNotification(notificationId) {
+            if (!confirm('确定要删除这个通知配置吗？')) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/notifications/${notificationId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    alert('通知配置已删除');
+                    refreshNotifications();
+                } else {
+                    alert('删除失败');
+                }
+            } catch (e) {
+                alert('删除失败: ' + e.message);
+            }
+        }
     </script>
 </body>
 </html>
