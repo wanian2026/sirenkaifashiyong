@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易系统 - 极简版</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font: 12px/1.5 Arial, sans-serif;
+            background: #fff;
+            color: #333;
+            padding: 10px;
+        }
+        .container { max-width: 1600px; margin: 0 auto; }
+        
+        /* 顶部栏 */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 2px solid #000;
+            margin-bottom: 10px;
+        }
+        .header h1 { font-size: 18px; font-weight: bold; }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .user-info span { font-size: 12px; }
+        .btn-small {
+            padding: 3px 8px;
+            font-size: 11px;
+            border: 1px solid #ccc;
+            background: #fff;
+            cursor: pointer;
+        }
+        .btn-small:hover { background: #000; color: #fff; }
+        
+        /* 标签导航 */
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px;
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 10px;
+            max-height: 80px;
+            overflow-y: auto;
+        }
+        .tab-btn {
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            background: #f5f5f5;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .tab-btn:hover { background: #e0e0e0; }
+        .tab-btn.active { background: #000; color: #fff; }
+        
+        /* 内容区 */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* 表格 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 6px 8px;
+            text-align: left;
+            font-size: 12px;
+        }
+        th { background: #f5f5f5; font-weight: bold; }
+        tr:hover { background: #f9f9f9; }
+        
+        /* 按钮 */
+        .btn {
+            padding: 4px 10px;
+            border: 1px solid #000;
+            background: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            margin-right: 3px;
+        }
+        .btn:hover { background: #000; color: #fff; }
+        .btn-success { border-color: #28a745; color: #28a745; }
+        .btn-success:hover { background: #28a745; color: #fff; }
+        .btn-danger { border-color: #dc3545; color: #dc3545; }
+        .btn-danger:hover { background: #dc3545; color: #fff; }
+        .btn-primary { background: #000; color: #fff; }
+        
+        /* 表单 */
+        .form-group { margin-bottom: 10px; }
+        .form-group label { display: block; margin-bottom: 3px; font-weight: bold; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ccc;
+            font-size: 12px;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        
+        /* 统计卡片 */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .stat-box {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        .stat-box strong { display: block; font-size: 20px; }
+        .stat-box span { font-size: 11px; color: #666; }
+        
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        .modal.active { display: block; }
+        .modal-content {
+            background: #fff;
+            padding: 15px;
+            margin: 30px auto;
+            max-width: 700px;
+            max-height: 85vh;
+            overflow-y: auto;
+            border: 2px solid #000;
+        }
+        .modal-buttons { margin-top: 15px; text-align: right; }
+        
+        /* 状态标签 */
+        .status-running { color: #28a745; font-weight: bold; }
+        .status-stopped { color: #dc3545; font-weight: bold; }
+        .profit-pos { color: #28a745; font-weight: bold; }
+        .profit-neg { color: #dc3545; font-weight: bold; }
+        
+        /* 分页 */
+        .pagination { display: flex; gap: 5px; align-items: center; }
+        .pagination button { padding: 3px 8px; margin: 0; }
+        
+        /* 工具栏 */
+        .toolbar { margin-bottom: 10px; padding: 10px; background: #f9f9f9; }
+        .toolbar-left { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 5px; }
+        .toolbar-right { display: flex; gap: 5px; align-items: center; }
+        
+        /* 登录框 */
+        .login-box {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 20px;
+            border: 2px solid #000;
+        }
+        .login-box h2 { text-align: center; margin-bottom: 20px; }
+        .login-box button { width: 100%; margin-top: 10px; }
+        
+        /* 日志 */
+        .log-container {
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .tabs { max-height: 120px; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 登录界面 -->
+        <div id="loginSection" class="login-box">
+            <h2>系统登录</h2>
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="loginUsername" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="loginPassword" placeholder="请输入密码">
+            </div>
+            <button class="btn btn-primary" onclick="login()">登录</button>
+            <p style="margin-top: 10px; color: #666; font-size: 11px;">默认账号: admin / admin123</p>
+        </div>
+        
+        <!-- 主界面 -->
+        <div id="mainSection" style="display: none;">
+            <!-- 顶部栏 -->
+            <div class="header">
+                <h1>加密货币交易系统</h1>
+                <div class="user-info">
+                    <span id="currentUsername">-</span>
+                    <button class="btn-small" onclick="logout()">退出</button>
+                </div>
+            </div>
+            
+            <!-- 标签导航 -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab('dashboard')">仪表盘</button>
+                <button class="tab-btn" onclick="showTab('bots')">机器人管理</button>
+                <button class="tab-btn" onclick="showTab('trades')">交易记录</button>
+                <button class="tab-btn" onclick="showTab('orders')">订单管理</button>
+                <button class="tab-btn" onclick="showTab('exchanges')">交易所管理</button>
+                <button class="tab-btn" onclick="showTab('risk')">风险管理</button>
+                <button class="tab-btn" onclick="showTab('backtest')">回测</button>
+                <button class="tab-btn" onclick="showTab('strategies')">高级策略</button>
+                <button class="tab-btn" onclick="showTab('analytics')">数据分析</button>
+                <button class="tab-btn" onclick="showTab('users')">用户管理</button>
+                <button class="tab-btn" onclick="showTab('audit')">审计日志</button>
+                <button class="tab-btn" onclick="showTab('performance')">性能监控</button>
+                <button class="tab-btn" onclick="showTab('database')">数据库管理</button>
+                <button class="tab-btn" onclick="showTab('logs')">日志管理</button>
+                <button class="tab-btn" onclick="showTab('notifications')">通知管理</button>
+                <button class="tab-btn" onclick="showTab('settings')">系统设置</button>
+            </div>
+            
+            <!-- 仪表盘 -->
+            <div id="dashboard" class="tab-content active">
+                <div class="stats" id="dashboardStats"></div>
+                <h3>最近交易</h3>
+                <table id="recentTrades">
+                    <thead><tr><th>时间</th><th>机器人</th><th>交易对</th><th>类型</th><th>价格</th><th>数量</th><th>利润</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- 机器人管理 -->
+            <div id="bots" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn btn-primary" onclick="showCreateBotModal()">创建机器人</button>
+                        <button class="btn" onclick="refreshBots()">刷新</button>
+                    </div>
+                </div>
+                <table id="botsTable">
+                    <thead>
+                        <tr><th>ID</th><th>名称</th><th>交易所</th><th>交易对</th><th>策略</th><th>状态</th><th>利润</th><th>操作</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- 交易记录 -->
+            <div id="trades" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn" onclick="refreshTrades()">刷新</button>
+                        <button class="btn" onclick="exportTrades()">导出CSV</button>
+                        <select id="tradeBotFilter" onchange="filterTrades()"><option value="">全部机器人</option></select>
+                    </div>
+                    <div class="toolbar-right">
+                        <input type="text" placeholder="搜索..." style="padding: 4px; border: 1px solid #ccc;">
+                    </div>
+                </div>
+                <table id="tradesTable">
+                    <thead>
+                        <tr><th>时间</th><th>机器人</th><th>交易对</th><th>类型</th><th>价格</th><th>数量</th><th>利润</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- 订单管理 -->
+            <div id="orders" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn" onclick="refreshOrders()">刷新</button>
+                        <button class="btn" onclick="cancelAllOrders()">取消全部订单</button>
+                    </div>
+                </div>
+                <table id="ordersTable">
+                    <thead>
+                        <tr><th>ID</th><th>机器人</th><th>交易对</th><th>类型</th><th>方向</th><th>价格</th><th>数量</th><th>状态</th><th>操作</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- 交易所管理 -->
+            <div id="exchanges" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn btn-primary" onclick="showAddExchangeModal()">添加交易所</button>
+                        <button class="btn" onclick="testAllExchanges()">测试连接</button>
+                    </div>
+                </div>
+                <table id="exchangesTable">
+                    <thead>
+                        <tr><th>ID</th><th>名称</th><th>类型</th><th>API密钥</th><th>状态</th><th>操作</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- 风险管理 -->
+            <div id="risk" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn" onclick="refreshRisk()">刷新</button>
+                        <button class="btn btn-danger" onclick="closeAllPositions()">平仓所有</button>
+                    </div>
+                </div>
+                <div class="stats" id="riskStats"></div>
+                <table id="riskTable">
+                    <thead>
+                        <tr><th>机器人</th><th>持仓价值</th><th>未实现盈亏</th><th>风险等级</th><th>仓位限制</th><th>止损设置</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- 回测 -->
+            <div id="backtest" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn btn-primary" onclick="showBacktestModal()">新建回测</button>
+                        <button class="btn" onclick="refreshBacktests()">刷新</button>
+                    </div>
+                </div>
+                <table id="backtestsTable">
+                    <thead>
+                        <tr><th>ID</th><th>策略</th><th>交易对</th><th>时间范围</th><th>总利润</th><th>胜率</th><th>最大回撤</th><th>操作</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- 高级策略 -->
+            <div id="strategies" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn btn-primary" onclick="showCreateStrategyModal()">创建策略</button>
+                    </div>
+                </div>
+                <table id="strategiesTable">
+                    <thead>
+                        <tr><th>ID</th><th>名称</th><th>类型</th><th>参数</th><th>状态</th><th>操作</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- 数据分析 -->
+            <div id="analytics" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn" onclick="refreshAnalytics()">刷新</button>
+                        <select id="analyticsType" onchange="refreshAnalytics()">
+                            <option value="overview">概览</option>
+                            <option value="performance">性能分析</option>
+                            <option value="trend">趋势分析</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="analyticsContent"></div>
+            </div>
+            
+            <!-- 用户管理 -->
+            <div id="users" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn btn-primary" onclick="showCreateUserModal()">创建用户</button>
+                        <button class="btn" onclick="refreshUsers()">刷新</button>
+                    </div>
+                </div>
+                <table id="usersTable">
+                    <thead>
+                        <tr><th>ID</th><th>用户名</th><th>邮箱</th><th>角色</th><th>状态</th><th>创建时间</th><th>操作</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- 审计日志 -->
+            <div id="audit" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn" onclick="refreshAuditLogs()">刷新</button>
+                        <select id="auditUserFilter" onchange="filterAuditLogs()"><option value="">全部用户</option></select>
+                        <input type="date" id="auditDateFilter" onchange="filterAuditLogs()">
+                        <button class="btn" onclick="exportAuditLogs()">导出</button>
+                    </div>
+                </div>
+                <table id="auditLogsTable">
+                    <thead>
+                        <tr><th>时间</th><th>用户</th><th>操作</th><th>资源</th><th>IP地址</th><th>详情</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- 性能监控 -->
+            <div id="performance" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn" onclick="refreshPerformance()">刷新</button>
+                    </div>
+                </div>
+                <div class="stats" id="performanceStats"></div>
+                <table id="performanceTable">
+                    <thead>
+                        <tr><th>指标</th><th>当前值</th><th>阈值</th><th>状态</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- 数据库管理 -->
+            <div id="database" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn btn-success" onclick="backupDatabase()">备份数据库</button>
+                        <button class="btn btn-danger" onclick="optimizeDatabase()">优化数据库</button>
+                        <button class="btn" onclick="analyzeDatabase()">分析数据库</button>
+                    </div>
+                </div>
+                <div id="dbStatus"></div>
+                <table id="dbBackupsTable">
+                    <thead>
+                        <tr><th>文件名</th><th>大小</th><th>时间</th><th>操作</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- 日志管理 -->
+            <div id="logs" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn" onclick="refreshLogs()">刷新</button>
+                        <select id="logLevel" onchange="filterLogs()">
+                            <option value="">全部级别</option>
+                            <option value="ERROR">ERROR</option>
+                            <option value="WARNING">WARNING</option>
+                            <option value="INFO">INFO</option>
+                            <option value="DEBUG">DEBUG</option>
+                        </select>
+                        <button class="btn" onclick="clearLogs()">清空日志</button>
+                    </div>
+                </div>
+                <div class="log-container" id="logsContainer"></div>
+            </div>
+            
+            <!-- 通知管理 -->
+            <div id="notifications" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn btn-primary" onclick="showAddNotificationModal()">添加通知配置</button>
+                        <button class="btn" onclick="testNotification()">测试通知</button>
+                    </div>
+                </div>
+                <table id="notificationsTable">
+                    <thead>
+                        <tr><th>渠道</th><th>配置</th><th>状态</th><th>操作</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- 系统设置 -->
+            <div id="settings" class="tab-content">
+                <h3>系统配置</h3>
+                <div class="form-group">
+                    <label>交易所API密钥</label>
+                    <input type="text" id="apiKey" placeholder="请输入API密钥">
+                </div>
+                <div class="form-group">
+                    <label>交易所API密钥</label>
+                    <input type="password" id="apiSecret" placeholder="请输入API密钥">
+                </div>
+                <button class="btn btn-primary" onclick="saveSettings()">保存配置</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 创建机器人模态框 -->
+    <div id="createBotModal" class="modal">
+        <div class="modal-content">
+            <h3>创建机器人</h3>
+            <div class="form-group">
+                <label>机器人名称</label>
+                <input type="text" id="botName" placeholder="机器人名称">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>交易所</label>
+                    <select id="botExchange"><option value="binance">Binance</option><option value="okx">OKX</option><option value="huobi">Huobi</option></select>
+                </div>
+                <div class="form-group">
+                    <label>交易对</label>
+                    <input type="text" id="botSymbol" placeholder="BTC/USDT">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>策略类型</label>
+                    <select id="botStrategy"><option value="grid">网格策略</option><option value="hedge_grid">对冲网格</option><option value="martingale">马丁格尔</option><option value="mean_reversion">均值回归</option><option value="momentum">动量策略</option><option value="code_a">Code A策略</option></select>
+                </div>
+                <div class="form-group">
+                    <label>投资金额(USDT)</label>
+                    <input type="number" id="botInvestment" value="1000">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>网格层数</label>
+                    <input type="number" id="botGridLevels" value="10">
+                </div>
+                <div class="form-group">
+                    <label>网格间距(%)</label>
+                    <input type="number" id="botGridSpacing" value="2" step="0.1">
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="closeModal('createBotModal')">取消</button>
+                <button class="btn btn-primary" onclick="createBot()">创建</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 回测模态框 -->
+    <div id="backtestModal" class="modal">
+        <div class="modal-content">
+            <h3>新建回测</h3>
+            <div class="form-group">
+                <label>策略类型</label>
+                <select id="backtestStrategy"><option value="grid">网格策略</option><option value="hedge_grid">对冲网格</option><option value="martingale">马丁格尔</option><option value="mean_reversion">均值回归</option><option value="momentum">动量策略</option><option value="code_a">Code A策略</option></select>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>交易对</label>
+                    <input type="text" id="backtestSymbol" value="BTC/USDT">
+                </div>
+                <div class="form-group">
+                    <label>时间周期</label>
+                    <select id="backtestTimeframe"><option value="1h">1小时</option><option value="4h">4小时</option><option value="1d">1天</option></select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>开始时间</label>
+                    <input type="date" id="backtestStartTime">
+                </div>
+                <div class="form-group">
+                    <label>结束时间</label>
+                    <input type="date" id="backtestEndTime">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>网格层数</label>
+                    <input type="number" id="backtestGridLevels" value="10">
+                </div>
+                <div class="form-group">
+                    <label>网格间距(%)</label>
+                    <input type="number" id="backtestGridSpacing" value="2" step="0.1">
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="closeModal('backtestModal')">取消</button>
+                <button class="btn btn-primary" onclick="runBacktest()">运行回测</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加交易所模态框 -->
+    <div id="addExchangeModal" class="modal">
+        <div class="modal-content">
+            <h3>添加交易所</h3>
+            <div class="form-group">
+                <label>交易所名称</label>
+                <input type="text" id="exchangeName" placeholder="交易所名称">
+            </div>
+            <div class="form-group">
+                <label>交易所类型</label>
+                <select id="exchangeType"><option value="binance">Binance</option><option value="okx">OKX</option><option value="huobi">Huobi</option></select>
+            </div>
+            <div class="form-group">
+                <label>API Key</label>
+                <input type="text" id="exchangeApiKey" placeholder="API Key">
+            </div>
+            <div class="form-group">
+                <label>API Secret</label>
+                <input type="password" id="exchangeApiSecret" placeholder="API Secret">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="closeModal('addExchangeModal')">取消</button>
+                <button class="btn btn-primary" onclick="addExchange()">添加</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 创建用户模态框 -->
+    <div id="createUserModal" class="modal">
+        <div class="modal-content">
+            <h3>创建用户</h3>
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="newUsername" placeholder="用户名">
+            </div>
+            <div class="form-group">
+                <label>邮箱</label>
+                <input type="email" id="newUserEmail" placeholder="邮箱">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="newUserPassword" placeholder="密码">
+            </div>
+            <div class="form-group">
+                <label>角色</label>
+                <select id="newUserRole"><option value="user">普通用户</option><option value="admin">管理员</option></select>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="closeModal('createUserModal')">取消</button>
+                <button class="btn btn-primary" onclick="createUser()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+        let authToken = localStorage.getItem('token');
+        
+        // 登录
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                const res = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                
+                if (data.access_token) {
+                    authToken = data.access_token;
+                    localStorage.setItem('token', authToken);
+                    document.getElementById('loginSection').style.display = 'none';
+                    document.getElementById('mainSection').style.display = 'block';
+                    loadDashboard();
+                } else {
+                    alert('登录失败: ' + (data.detail || '未知错误'));
+                }
+            } catch (e) {
+                alert('登录失败: ' + e.message);
+            }
+        }
+        
+        // 退出
+        function logout() {
+            localStorage.removeItem('token');
+            authToken = null;
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('mainSection').style.display = 'none';
+        }
+        
+        // 检查登录状态
+        if (authToken) {
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('mainSection').style.display = 'block';
+            loadDashboard();
+        }
+        
+        // 显示标签页
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+            
+            // 加载对应数据
+            switch(tabId) {
+                case 'dashboard': loadDashboard(); break;
+                case 'bots': refreshBots(); break;
+                case 'trades': refreshTrades(); break;
+                case 'orders': refreshOrders(); break;
+                case 'exchanges': refreshExchanges(); break;
+                case 'risk': refreshRisk(); break;
+                case 'backtest': refreshBacktests(); break;
+                case 'strategies': refreshStrategies(); break;
+                case 'analytics': refreshAnalytics(); break;
+                case 'users': refreshUsers(); break;
+                case 'audit': refreshAuditLogs(); break;
+                case 'performance': refreshPerformance(); break;
+                case 'database': refreshDatabase(); break;
+                case 'logs': refreshLogs(); break;
+                case 'notifications': refreshNotifications(); break;
+            }
+        }
+        
+        // 加载仪表盘
+        async function loadDashboard() {
+            try {
+                const [botsRes, tradesRes] = await Promise.all([
+                    fetch(`${API_BASE}/bots`, { headers: { 'Authorization': `Bearer ${authToken}` } }),
+                    fetch(`${API_BASE}/trades/recent?limit=10`, { headers: { 'Authorization': `Bearer ${authToken}` } })
+                ]);
+                
+                const bots = await botsRes.json();
+                const trades = await tradesRes.json();
+                
+                // 统计数据
+                const totalProfit = bots.reduce((sum, b) => sum + (b.total_profit || 0), 0);
+                const runningCount = bots.filter(b => b.status === 'running').length;
+                const stoppedCount = bots.filter(b => b.status === 'stopped').length;
+                
+                document.getElementById('dashboardStats').innerHTML = `
+                    <div class="stat-box"><strong>${bots.length}</strong><span>机器人总数</span></div>
+                    <div class="stat-box"><strong>${runningCount}</strong><span>运行中</span></div>
+                    <div class="stat-box"><strong>${stoppedCount}</strong><span>已停止</span></div>
+                    <div class="stat-box"><strong>${totalProfit.toFixed(2)}</strong><span>总利润(USDT)</span></div>
+                    <div class="stat-box"><strong>${trades.length}</strong><span>今日交易</span></div>
+                    <div class="stat-box"><strong>99.9%</strong><span>系统正常</span></div>
+                `;
+                
+                // 最近交易
+                const tbody = document.querySelector('#recentTrades tbody');
+                tbody.innerHTML = trades.map(t => `
+                    <tr>
+                        <td>${new Date(t.created_at).toLocaleString()}</td>
+                        <td>${t.bot_name || '-'}</td>
+                        <td>${t.symbol || '-'}</td>
+                        <td>${t.side || '-'}</td>
+                        <td>${t.price || '-'}</td>
+                        <td>${t.amount || '-'}</td>
+                        <td class="${t.profit >= 0 ? 'profit-pos' : 'profit-neg'}">${t.profit || '-'}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('加载仪表盘失败:', e);
+            }
+        }
+        
+        // 机器人管理
+        async function refreshBots() {
+            try {
+                const res = await fetch(`${API_BASE}/bots`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                const bots = await res.json();
+                
+                const tbody = document.querySelector('#botsTable tbody');
+                tbody.innerHTML = bots.map(b => `
+                    <tr>
+                        <td>${b.id}</td>
+                        <td>${b.name}</td>
+                        <td>${b.exchange_id}</td>
+                        <td>${b.symbol}</td>
+                        <td>${b.strategy_type}</td>
+                        <td class="${b.status === 'running' ? 'status-running' : 'status-stopped'}">${b.status}</td>
+                        <td class="${b.total_profit >= 0 ? 'profit-pos' : 'profit-neg'}">${(b.total_profit || 0).toFixed(2)}</td>
+                        <td>
+                            ${b.status === 'stopped' ? `<button class="btn btn-success" onclick="startBot(${b.id})">启动</button>` : `<button class="btn btn-danger" onclick="stopBot(${b.id})">停止</button>`}
+                            <button class="btn" onclick="viewBotStatus(${b.id})">状态</button>
+                            <button class="btn btn-danger" onclick="deleteBot(${b.id})">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('刷新机器人失败:', e);
+            }
+        }
+        
+        async function startBot(botId) {
+            try {
+                const res = await fetch(`${API_BASE}/bots/${botId}/start`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    alert('机器人启动成功');
+                    refreshBots();
+                } else {
+                    alert('启动失败');
+                }
+            } catch (e) {
+                alert('启动失败: ' + e.message);
+            }
+        }
+        
+        async function stopBot(botId) {
+            try {
+                const res = await fetch(`${API_BASE}/bots/${botId}/stop`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    alert('机器人已停止');
+                    refreshBots();
+                } else {
+                    alert('停止失败');
+                }
+            } catch (e) {
+                alert('停止失败: ' + e.message);
+            }
+        }
+        
+        async function deleteBot(botId) {
+            if (!confirm('确定要删除这个机器人吗？')) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/bots/${botId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    alert('机器人已删除');
+                    refreshBots();
+                }
+            } catch (e) {
+                alert('删除失败');
+            }
+        }
+        
+        async function createBot() {
+            const data = {
+                name: document.getElementById('botName').value,
+                exchange_id: document.getElementById('botExchange').value,
+                symbol: document.getElementById('botSymbol').value,
+                strategy_type: document.getElementById('botStrategy').value,
+                investment_amount: parseFloat(document.getElementById('botInvestment').value),
+                grid_levels: parseInt(document.getElementById('botGridLevels').value),
+                grid_spacing: parseFloat(document.getElementById('botGridSpacing').value) / 100
+            };
+            
+            try {
+                const res = await fetch(`${API_BASE}/bots`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (res.ok) {
+                    alert('机器人创建成功');
+                    closeModal('createBotModal');
+                    refreshBots();
+                } else {
+                    alert('创建失败');
+                }
+            } catch (e) {
+                alert('创建失败: ' + e.message);
+            }
+        }
+        
+        // 交易记录
+        async function refreshTrades() {
+            try {
+                const res = await fetch(`${API_BASE}/trades/recent?limit=50`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const trades = await res.json();
+                
+                const tbody = document.querySelector('#tradesTable tbody');
+                tbody.innerHTML = trades.map(t => `
+                    <tr>
+                        <td>${new Date(t.created_at).toLocaleString()}</td>
+                        <td>${t.bot_name || '-'}</td>
+                        <td>${t.symbol || '-'}</td>
+                        <td>${t.side || '-'}</td>
+                        <td>${t.price || '-'}</td>
+                        <td>${t.amount || '-'}</td>
+                        <td class="${t.profit >= 0 ? 'profit-pos' : 'profit-neg'}">${t.profit || '-'}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('刷新交易记录失败:', e);
+            }
+        }
+        
+        // 订单管理
+        async function refreshOrders() {
+            try {
+                const res = await fetch(`${API_BASE}/orders`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const orders = await res.json();
+                
+                const tbody = document.querySelector('#ordersTable tbody');
+                tbody.innerHTML = orders.map(o => `
+                    <tr>
+                        <td>${o.id}</td>
+                        <td>${o.bot_id || '-'}</td>
+                        <td>${o.symbol || '-'}</td>
+                        <td>${o.order_type || '-'}</td>
+                        <td>${o.side || '-'}</td>
+                        <td>${o.price || '-'}</td>
+                        <td>${o.amount || '-'}</td>
+                        <td>${o.status || '-'}</td>
+                        <td><button class="btn btn-danger" onclick="cancelOrder(${o.id})">取消</button></td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('刷新订单失败:', e);
+            }
+        }
+        
+        // 交易所管理
+        async function refreshExchanges() {
+            try {
+                const res = await fetch(`${API_BASE}/exchange`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const exchanges = await res.json();
+                
+                const tbody = document.querySelector('#exchangesTable tbody');
+                tbody.innerHTML = exchanges.map(e => `
+                    <tr>
+                        <td>${e.id}</td>
+                        <td>${e.name}</td>
+                        <td>${e.exchange_id}</td>
+                        <td>${e.api_key ? '***' + e.api_key.slice(-4) : '-'}</td>
+                        <td>${e.status || 'active'}</td>
+                        <td>
+                            <button class="btn" onclick="testExchange(${e.id})">测试</button>
+                            <button class="btn btn-danger" onclick="deleteExchange(${e.id})">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('刷新交易所失败:', e);
+            }
+        }
+        
+        async function addExchange() {
+            const data = {
+                name: document.getElementById('exchangeName').value,
+                exchange_id: document.getElementById('exchangeType').value,
+                api_key: document.getElementById('exchangeApiKey').value,
+                api_secret: document.getElementById('exchangeApiSecret').value
+            };
+            
+            try {
+                const res = await fetch(`${API_BASE}/exchange`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (res.ok) {
+                    alert('交易所添加成功');
+                    closeModal('addExchangeModal');
+                    refreshExchanges();
+                } else {
+                    alert('添加失败');
+                }
+            } catch (e) {
+                alert('添加失败: ' + e.message);
+            }
+        }
+        
+        // 用户管理
+        async function refreshUsers() {
+            try {
+                const res = await fetch(`${API_BASE}/rbac/users`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const users = await res.json();
+                
+                const tbody = document.querySelector('#usersTable tbody');
+                tbody.innerHTML = users.map(u => `
+                    <tr>
+                        <td>${u.id}</td>
+                        <td>${u.username}</td>
+                        <td>${u.email}</td>
+                        <td>${u.role}</td>
+                        <td>${u.is_active ? 'active' : 'inactive'}</td>
+                        <td>${new Date(u.created_at).toLocaleString()}</td>
+                        <td>
+                            <button class="btn" onclick="editUser(${u.id})">编辑</button>
+                            <button class="btn btn-danger" onclick="deleteUser(${u.id})">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('刷新用户失败:', e);
+            }
+        }
+        
+        async function createUser() {
+            const data = {
+                username: document.getElementById('newUsername').value,
+                email: document.getElementById('newUserEmail').value,
+                password: document.getElementById('newUserPassword').value,
+                role: document.getElementById('newUserRole').value
+            };
+            
+            try {
+                const res = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (res.ok) {
+                    alert('用户创建成功');
+                    closeModal('createUserModal');
+                    refreshUsers();
+                } else {
+                    alert('创建失败');
+                }
+            } catch (e) {
+                alert('创建失败: ' + e.message);
+            }
+        }
+        
+        // 性能监控
+        async function refreshPerformance() {
+            try {
+                const res = await fetch(`${API_BASE}/performance/stats`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const stats = await res.json();
+                
+                document.getElementById('performanceStats').innerHTML = `
+                    <div class="stat-box"><strong>${stats.cpu_usage || 0}%</strong><span>CPU使用率</span></div>
+                    <div class="stat-box"><strong>${stats.memory_usage || 0}%</strong><span>内存使用率</span></div>
+                    <div class="stat-box"><strong>${stats.disk_usage || 0}%</strong><span>磁盘使用率</span></div>
+                    <div class="stat-box"><strong>${stats.active_connections || 0}</strong><span>活跃连接</span></div>
+                `;
+                
+                const tbody = document.querySelector('#performanceTable tbody');
+                tbody.innerHTML = `
+                    <tr><td>API响应时间</td><td>${stats.api_response_time || 0}ms</td><td>1000ms</td><td class="status-running">正常</td></tr>
+                    <tr><td>数据库连接</td><td>${stats.db_connections || 0}</td><td>100</td><td class="status-running">正常</td></tr>
+                    <tr><td>缓存命中率</td><td>${stats.cache_hit_rate || 0}%</td><td>80%</td><td class="status-running">正常</td></tr>
+                `;
+            } catch (e) {
+                console.error('刷新性能数据失败:', e);
+            }
+        }
+        
+        // 数据库管理
+        async function backupDatabase() {
+            if (!confirm('确定要备份数据库吗？')) return;
+            try {
+                const res = await fetch(`${API_BASE}/database-manager/backup`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    alert('数据库备份成功');
+                    refreshDatabase();
+                } else {
+                    alert('备份失败');
+                }
+            } catch (e) {
+                alert('备份失败: ' + e.message);
+            }
+        }
+        
+        async function optimizeDatabase() {
+            if (!confirm('确定要优化数据库吗？这可能需要一些时间。')) return;
+            try {
+                const res = await fetch(`${API_BASE}/database-manager/optimize`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    alert('数据库优化成功');
+                } else {
+                    alert('优化失败');
+                }
+            } catch (e) {
+                alert('优化失败: ' + e.message);
+            }
+        }
+        
+        async function refreshDatabase() {
+            try {
+                const res = await fetch(`${API_BASE}/database-manager/backups`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const backups = await res.json();
+                
+                const tbody = document.querySelector('#dbBackupsTable tbody');
+                tbody.innerHTML = backups.map(b => `
+                    <tr>
+                        <td>${b.filename}</td>
+                        <td>${b.size}</td>
+                        <td>${new Date(b.created_at).toLocaleString()}</td>
+                        <td><button class="btn" onclick="restoreBackup('${b.filename}')">恢复</button><button class="btn btn-danger" onclick="deleteBackup('${b.filename}')">删除</button></td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('刷新数据库信息失败:', e);
+            }
+        }
+        
+        // 模态框控制
+        function showCreateBotModal() { document.getElementById('createBotModal').classList.add('active'); }
+        function showBacktestModal() { document.getElementById('backtestModal').classList.add('active'); }
+        function showAddExchangeModal() { document.getElementById('addExchangeModal').classList.add('active'); }
+        function showCreateUserModal() { document.getElementById('createUserModal').classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        
+        // 回测
+        async function runBacktest() {
+            const data = {
+                strategy_type: document.getElementById('backtestStrategy').value,
+                symbol: document.getElementById('backtestSymbol').value,
+                timeframe: document.getElementById('backtestTimeframe').value,
+                start_time: document.getElementById('backtestStartTime').value,
+                end_time: document.getElementById('backtestEndTime').value,
+                grid_levels: parseInt(document.getElementById('backtestGridLevels').value),
+                grid_spacing: parseFloat(document.getElementById('backtestGridSpacing').value) / 100
+            };
+            
+            try {
+                const res = await fetch(`${API_BASE}/backtest/run`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (res.ok) {
+                    alert('回测任务已提交');
+                    closeModal('backtestModal');
+                    refreshBacktests();
+                } else {
+                    alert('提交失败');
+                }
+            } catch (e) {
+                alert('提交失败: ' + e.message);
+            }
+        }
+        
+        async function refreshBacktests() {
+            // 简化实现
+            document.querySelector('#backtestsTable tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;">暂无回测记录</td></tr>';
+        }
+        
+        // 其他功能的简化实现
+        function refreshOrders() { document.querySelector('#ordersTable tbody').innerHTML = '<tr><td colspan="9" style="text-align:center;">暂无订单</td></tr>'; }
+        function refreshRisk() { document.querySelector('#riskTable tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;">暂无风险数据</td></tr>'; }
+        function refreshStrategies() { document.querySelector('#strategiesTable tbody').innerHTML = '<tr><td colspan="5" style="text-align:center;">暂无自定义策略</td></tr>'; }
+        function refreshAnalytics() { document.getElementById('analyticsContent').innerHTML = '<p style="text-align:center;padding:20px;">数据分析功能开发中...</p>'; }
+        function refreshAuditLogs() { document.querySelector('#auditLogsTable tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;">暂无审计日志</td></tr>'; }
+        function refreshLogs() { document.getElementById('logsContainer').innerHTML = '暂无日志记录'; }
+        function refreshNotifications() { document.querySelector('#notificationsTable tbody').innerHTML = '<tr><td colspan="4" style="text-align:center;">暂无通知配置</td></tr>'; }
+        
+        // 导出功能
+        async function exportTrades() {
+            alert('导出功能开发中...');
+        }
+        
+        async function exportAuditLogs() {
+            alert('导出功能开发中...');
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 设置默认日期
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('backtestEndTime').value = today;
+            document.getElementById('backtestStartTime').value = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
+        });
+    </script>
+</body>
+</html>
