@@ -8,7 +8,7 @@ from app.schemas import (
     BotCreate, BotResponse, BotStatus, BotUpdate,
     RiskCheckRequest, RiskCheckResponse
 )
-from app.strategies import HedgeGridStrategy
+from app.code_a_strategy import CodeAStrategy
 from app.risk_management import RiskManager
 from app.cache import CacheManager, CacheKey
 import json

@@ -1,5 +1,6 @@
 """
-高级策略管理API路由
+策略管理API路由
+只保留代码A策略作为核心策略
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,11 +11,7 @@ import logging
 from app.database import get_db
 from app.models import User
 from app.auth import get_current_user
-from app.advanced_strategies import (
-    MeanReversionStrategy,
-    MomentumStrategy,
-    StrategyFactory
-)
+from app.code_a_strategy import CodeAStrategy, CodeABacktestStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -35,37 +32,18 @@ async def list_strategy_types():
     return {
         "strategies": [
             {
-                "type": "hedge_grid",
-                "name": "对冲网格",
-                "description": "基于网格的做市策略，在价格波动中获利",
+                "type": "code_a",
+                "name": "代码A策略",
+                "description": "基于技术分析的核心交易策略，结合趋势跟踪和均值回归",
                 "params": {
-                    "grid_levels": "网格层数",
-                    "grid_spacing": "网格间距",
+                    "trend_period": "趋势判断周期（默认20）",
+                    "reversion_period": "均值回归周期（默认10）",
+                    "volatility_threshold": "波动率阈值（默认0.02）",
+                    "position_size": "单笔持仓比例（默认0.1）",
+                    "take_profit": "止盈百分比（默认0.05）",
+                    "stop_loss": "止损百分比（默认0.03）",
+                    "risk_limit": "单笔风险限制（默认0.02）",
                     "investment_amount": "投资金额"
-                }
-            },
-            {
-                "type": "mean_reversion",
-                "name": "均值回归",
-                "description": "基于价格回归均值的策略，当价格偏离均值时进行反向交易",
-                "params": {
-                    "lookback_period": "回望周期（天数）",
-                    "std_multiplier": "标准差倍数",
-                    "investment_amount": "投资金额",
-                    "position_limit": "持仓限制"
-                }
-            },
-            {
-                "type": "momentum",
-                "name": "动量策略",
-                "description": "基于价格动量的趋势跟踪策略，跟踪价格趋势进行交易",
-                "params": {
-                    "short_period": "短期均线周期",
-                    "long_period": "长期均线周期",
-                    "momentum_threshold": "动量阈值",
-                    "investment_amount": "投资金额",
-                    "stop_loss_percent": "止损百分比",
-                    "take_profit_percent": "止盈百分比"
                 }
             }
         ]
@@ -91,226 +69,105 @@ async def backtest_strategy(
         回测结果
     """
     try:
-        # 创建策略实例
-        strategy = StrategyFactory.create_strategy(strategy_type, config)
-
-        if not strategy:
+        # 只支持code_a策略
+        if strategy_type != 'code_a':
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"不支持的策略类型: {strategy_type}"
+                detail=f"只支持代码A策略"
             )
 
-        # 模拟回测
-        trades = []
-        for price in price_data:
-            await strategy.update_price(price)
-            signal = await strategy.generate_signal(price)
+        # 创建策略实例
+        strategy = CodeABacktestStrategy()
 
-            if signal:
-                await strategy.execute_trade(signal)
-                trades.append({
-                    'price': price,
-                    'signal': signal
-                })
+        # 准备数据
+        import pandas as pd
+        df = pd.DataFrame(price_data)
 
-        # 获取最终状态
-        final_status = strategy.get_strategy_status()
+        # 执行回测
+        result = strategy.execute(df, config)
 
         return {
+            "success": True,
             "strategy_type": strategy_type,
             "config": config,
-            "data_points": len(price_data),
-            "total_trades": len(trades),
-            "final_pnl": final_status['total_pnl'],
-            "realized_pnl": final_status['realized_pnl'],
-            "final_position": final_status['current_position'],
-            "final_position_value": final_status['position_value'],
-            "trades": trades[-10:],  # 只返回最后10笔交易
-            "status": final_status
+            "trades": result.to_dict('records'),
+            "total_trades": len(result)
         }
 
     except Exception as e:
-        logger.error(f"策略回测失败: {e}")
+        logger.error(f"回测失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"策略回测失败: {str(e)}"
+            detail=f"回测执行失败: {str(e)}"
         )
 
 
-@router.post("/{strategy_type}/initialize")
-async def initialize_strategy(
-    strategy_type: str,
+@router.post("/start")
+async def start_strategy(
     bot_id: int,
+    strategy_type: str,
     config: Dict,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    初始化策略
+    启动策略
 
     Args:
-        strategy_type: 策略类型
         bot_id: 机器人ID
+        strategy_type: 策略类型
         config: 策略配置
 
     Returns:
-        初始化结果
+        启动结果
     """
     try:
-        # 创建策略实例
-        strategy = StrategyFactory.create_strategy(strategy_type, config)
-
-        if not strategy:
+        # 只支持code_a策略
+        if strategy_type != 'code_a':
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"不支持的策略类型: {strategy_type}"
+                detail=f"只支持代码A策略"
             )
+
+        # 创建策略实例
+        strategy = CodeAStrategy(
+            trading_pair=config.get('trading_pair', 'BTC/USDT'),
+            investment_amount=config.get('investment_amount', 10000),
+            trend_period=config.get('trend_period', 20),
+            reversion_period=config.get('reversion_period', 10),
+            volatility_threshold=config.get('volatility_threshold', 0.02),
+            position_size=config.get('position_size', 0.1),
+            take_profit=config.get('take_profit', 0.05),
+            stop_loss=config.get('stop_loss', 0.03),
+            risk_limit=config.get('risk_limit', 0.02)
+        )
 
         # 存储策略实例
         running_strategies[bot_id] = {
             'strategy': strategy,
             'type': strategy_type,
-            'user_id': current_user.id
+            'config': config
         }
-
-        logger.info(f"策略初始化成功: {strategy_type}, bot_id: {bot_id}")
 
         return {
-            "message": "策略初始化成功",
-            "strategy_type": strategy_type,
+            "success": True,
+            "message": "代码A策略已启动",
             "bot_id": bot_id,
-            "config": config
+            "strategy_type": strategy_type
         }
 
     except Exception as e:
-        logger.error(f"策略初始化失败: {e}")
+        logger.error(f"启动策略失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"策略初始化失败: {str(e)}"
+            detail=f"启动策略失败: {str(e)}"
         )
 
 
-@router.post("/{bot_id}/update")
-async def update_strategy(
-    bot_id: int,
-    price: float,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    更新策略状态
-
-    Args:
-        bot_id: 机器人ID
-        price: 当前价格
-
-    Returns:
-        更新结果
-    """
-    try:
-        # 获取策略实例
-        if bot_id not in running_strategies:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="策略不存在，请先初始化"
-            )
-
-        strategy_data = running_strategies[bot_id]
-        strategy = strategy_data['strategy']
-
-        # 验证权限
-        if strategy_data['user_id'] != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权访问此策略"
-            )
-
-        # 更新价格
-        await strategy.update_price(price)
-
-        # 生成信号
-        signal = await strategy.generate_signal(price)
-
-        # 如果有信号，执行交易
-        trade_executed = False
-        if signal:
-            await strategy.execute_trade(signal)
-            trade_executed = True
-
-        # 获取状态
-        status = strategy.get_strategy_status()
-
-        return {
-            "bot_id": bot_id,
-            "price": price,
-            "signal": signal if signal else None,
-            "trade_executed": trade_executed,
-            "status": status
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"策略更新失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"策略更新失败: {str(e)}"
-        )
-
-
-@router.get("/{bot_id}/status")
-async def get_strategy_status(
-    bot_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    获取策略状态
-
-    Args:
-        bot_id: 机器人ID
-
-    Returns:
-        策略状态
-    """
-    try:
-        # 获取策略实例
-        if bot_id not in running_strategies:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="策略不存在"
-            )
-
-        strategy_data = running_strategies[bot_id]
-
-        # 验证权限
-        if strategy_data['user_id'] != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权访问此策略"
-            )
-
-        # 获取状态
-        strategy = strategy_data['strategy']
-        status = strategy.get_strategy_status()
-
-        return status
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"获取策略状态失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取策略状态失败: {str(e)}"
-        )
-
-
-@router.post("/{bot_id}/stop")
+@router.post("/stop")
 async def stop_strategy(
     bot_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user)
 ):
     """
     停止策略
@@ -322,39 +179,26 @@ async def stop_strategy(
         停止结果
     """
     try:
-        # 获取策略实例
-        if bot_id not in running_strategies:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="策略不存在"
-            )
+        if bot_id in running_strategies:
+            strategy_info = running_strategies[bot_id]
+            strategy = strategy_info['strategy']
+            status = strategy.get_status()
 
-        strategy_data = running_strategies[bot_id]
+            del running_strategies[bot_id]
 
-        # 验证权限
-        if strategy_data['user_id'] != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权访问此策略"
-            )
+            return {
+                "success": True,
+                "message": "策略已停止",
+                "bot_id": bot_id,
+                "final_status": status
+            }
+        else:
+            return {
+                "success": False,
+                "message": "策略未运行",
+                "bot_id": bot_id
+            }
 
-        # 获取最终状态
-        strategy = strategy_data['strategy']
-        final_status = strategy.get_strategy_status()
-
-        # 停止策略
-        running_strategies.pop(bot_id)
-
-        logger.info(f"策略已停止: bot_id: {bot_id}, 最终盈亏: {final_status['total_pnl']:.2f}")
-
-        return {
-            "message": "策略已停止",
-            "bot_id": bot_id,
-            "final_status": final_status
-        }
-
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"停止策略失败: {e}")
         raise HTTPException(
@@ -363,55 +207,75 @@ async def stop_strategy(
         )
 
 
-@router.get("/{bot_id}/trades")
-async def get_strategy_trades(
+@router.get("/status/{bot_id}")
+async def get_strategy_status(
     bot_id: int,
-    limit: int = 50,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user)
 ):
     """
-    获取策略交易历史
+    获取策略状态
 
     Args:
         bot_id: 机器人ID
-        limit: 返回数量限制
 
     Returns:
-        交易历史
+        策略状态
     """
     try:
-        # 获取策略实例
-        if bot_id not in running_strategies:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="策略不存在"
-            )
+        if bot_id in running_strategies:
+            strategy = running_strategies[bot_id]['strategy']
+            status = strategy.get_status()
+            return {
+                "success": True,
+                "status": status
+            }
+        else:
+            return {
+                "success": False,
+                "message": "策略未运行"
+            }
 
-        strategy_data = running_strategies[bot_id]
-
-        # 验证权限
-        if strategy_data['user_id'] != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权访问此策略"
-            )
-
-        # 获取交易历史
-        strategy = strategy_data['strategy']
-        trades = strategy.trades[-limit:] if len(strategy.trades) > limit else strategy.trades
-
-        return {
-            "bot_id": bot_id,
-            "total_trades": len(strategy.trades),
-            "trades": trades
-        }
-
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"获取策略交易历史失败: {e}")
+        logger.error(f"获取策略状态失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取策略交易历史失败: {str(e)}"
+            detail=f"获取策略状态失败: {str(e)}"
+        )
+
+
+@router.post("/signal")
+async def generate_signal(
+    bot_id: int,
+    current_price: float,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    生成交易信号
+
+    Args:
+        bot_id: 机器人ID
+        current_price: 当前价格
+
+    Returns:
+        交易信号
+    """
+    try:
+        if bot_id in running_strategies:
+            strategy = running_strategies[bot_id]['strategy']
+            signal = strategy.generate_signal(current_price)
+            return {
+                "success": True,
+                "signal": signal
+            }
+        else:
+            return {
+                "success": False,
+                "message": "策略未运行"
+            }
+
+    except Exception as e:
+        logger.error(f"生成信号失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"生成信号失败: {str(e)}"
         )
