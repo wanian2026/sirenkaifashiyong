@@ -23,11 +23,6 @@ class ExchangeManager:
     SUPPORTED_EXCHANGES = {
         'binance': '币安',
         'okx': '欧易',
-        'huobi': '火币',
-        'bybit': 'Bybit',
-        'gate': 'Gate.io',
-        'kucoin': 'KuCoin',
-        'bitget': 'Bitget',
     }
 
     @staticmethod

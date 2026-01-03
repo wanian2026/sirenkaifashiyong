@@ -76,12 +76,11 @@ class QuickSetup:
         print("支持的交易所:")
         print("  1. binance (币安)")
         print("  2. okx (欧易)")
-        print("  3. huobi (火币)")
         print()
         
         # 获取交易所
-        exchange_map = {"1": "binance", "2": "okx", "3": "huobi"}
-        exchange_choice = input("请选择交易所 (1-3) [默认: 1]: ").strip() or "1"
+        exchange_map = {"1": "binance", "2": "okx"}
+        exchange_choice = input("请选择交易所 (1-2) [默认: 1]: ").strip() or "1"
         exchange_name = exchange_map.get(exchange_choice, "binance")
         
         # 获取API密钥
