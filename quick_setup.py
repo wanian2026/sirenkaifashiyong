@@ -204,6 +204,29 @@ class QuickSetup:
         max_position = float(input("最大仓位 USDT [默认: 1000]: ").strip() or "1000")
         stop_loss = float(input("止损阈值，如 0.05 表示 5% [默认: 0.05]: ").strip() or "0.05")
         take_profit = float(input("止盈阈值，如 0.10 表示 10% [默认: 0.10]: ").strip() or "0.10")
+        
+        # 交易成本参数
+        self.print_info("\n配置交易成本参数:")
+        commission_rate = float(input("手续费率，如 0.1 表示 0.1% [默认: 0.1]: ").strip() or "0.1")
+        slippage_rate = float(input("滑点率，如 0.05 表示 0.05% [默认: 0.05]: ").strip() or "0.05")
+        
+        # 计算交易成本预估
+        self.print_header("💰 交易成本预估")
+        commission = investment_amount * (commission_rate / 100)
+        slippage = investment_amount * (slippage_rate / 100)
+        stop_loss_cost = investment_amount * stop_loss
+        total_commission = commission * 2  # 买入和卖出
+        total_slippage = slippage * 2  # 买入和卖出
+        total_cost = total_commission + total_slippage + stop_loss_cost
+        total_percent = (total_cost / investment_amount * 100) if investment_amount > 0 else 0
+        
+        self.print_info(f"投资金额: {investment_amount:.2f} USDT")
+        self.print_info(f"单笔手续费: {commission:.2f} USDT ({commission_rate}%)")
+        self.print_info(f"单笔滑点成本: {slippage:.2f} USDT ({slippage_rate}%)")
+        self.print_info(f"止损预估损失: {stop_loss_cost:.2f} USDT ({stop_loss*100:.1f}%)")
+        self.print_info(f"最大持仓成本: {max_position:.2f} USDT")
+        self.print_info(f"总预估成本(单次完整交易): {total_cost:.2f} USDT ({total_percent:.1f}%)")
+        self.print_info("\n说明: 成本基于当前参数预估，实际成本可能因市场波动而变化")
 
         # 构建配置
         config = {
@@ -214,6 +237,8 @@ class QuickSetup:
             "max_position": max_position,
             "stop_loss_threshold": stop_loss,
             "take_profit_threshold": take_profit,
+            "commission_rate": commission_rate / 100,  # 转换为小数
+            "slippage_rate": slippage_rate / 100,  # 转换为小数
             "enable_auto_stop": True,
             "dynamic_grid": False,
             "batch_build": False
