@@ -62,7 +62,9 @@ echo "================================================"
 echo ""
 
 echo -e "${YELLOW}⏳ 正在安装依赖...${NC}"
-if [ -f "requirements_no_coincurve.txt" ]; then
+if [ -f "requirements_mac_compatible.txt" ]; then
+    pip install -r requirements_mac_compatible.txt --no-cache-dir
+elif [ -f "requirements_no_coincurve.txt" ]; then
     pip install -r requirements_no_coincurve.txt --no-cache-dir
 elif [ -f "requirements.txt" ]; then
     pip install -r requirements.txt --no-cache-dir
