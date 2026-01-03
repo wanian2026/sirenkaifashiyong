@@ -161,6 +161,31 @@
                             <i class="bi bi-gear"></i> 系统设置
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('users')">
+                            <i class="bi bi-people"></i> 用户管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('exchanges')">
+                            <i class="bi bi-shop"></i> 交易所管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('audit')">
+                            <i class="bi bi-shield-lock"></i> 审计日志
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('monitor')">
+                            <i class="bi bi-activity"></i> 性能监控
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('database')">
+                            <i class="bi bi-database"></i> 数据库管理
+                        </a>
+                    </li>
                 </ul>
             </div>
 
@@ -574,6 +599,669 @@
                     </div>
                 </div>
 
+                <!-- 用户管理 -->
+                <div id="users" class="content-section">
+                    <h2>用户管理</h2>
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>用户列表</span>
+                                <button class="btn btn-primary btn-sm" onclick="showCreateUserModal()">
+                                    <i class="bi bi-plus-circle"></i> 创建用户
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>用户名</th>
+                                            <th>邮箱</th>
+                                            <th>角色</th>
+                                            <th>状态</th>
+                                            <th>MFA</th>
+                                            <th>最后登录</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="userList">
+                                        <tr><td colspan="8">加载中...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 角色管理 -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>角色管理</span>
+                                <button class="btn btn-primary btn-sm" onclick="showCreateRoleModal()">
+                                    <i class="bi bi-plus-circle"></i> 创建角色
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>角色名</th>
+                                            <th>描述</th>
+                                            <th>用户数</th>
+                                            <th>权限</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="roleList">
+                                        <tr><td colspan="6">加载中...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 交易所管理 -->
+                <div id="exchanges" class="content-section">
+                    <h2>交易所管理</h2>
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Binance</h5>
+                                    <p class="text-success">● 连接正常</p>
+                                    <p>余额: $12,500.00</p>
+                                    <button class="btn btn-sm btn-primary" onclick="refreshBalance('binance')">刷新余额</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">OKX</h5>
+                                    <p class="text-success">● 连接正常</p>
+                                    <p>余额: $8,320.00</p>
+                                    <button class="btn btn-sm btn-primary" onclick="refreshBalance('okx')">刷新余额</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Huobi</h5>
+                                    <p class="text-success">● 连接正常</p>
+                                    <p>余额: $5,100.00</p>
+                                    <button class="btn btn-sm btn-primary" onclick="refreshBalance('huobi')">刷新余额</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Bybit</h5>
+                                    <p class="text-warning">● 未配置</p>
+                                    <button class="btn btn-sm btn-success" onclick="configureExchange('bybit')">配置</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 交易所配置 -->
+                    <div class="card">
+                        <div class="card-header">交易所配置</div>
+                        <div class="card-body">
+                            <form id="exchangeConfigForm">
+                                <div class="mb-3">
+                                    <label class="form-label">选择交易所</label>
+                                    <select class="form-select" id="exchangeSelect" onchange="loadExchangeConfig()">
+                                        <option value="binance">Binance</option>
+                                        <option value="okx">OKX</option>
+                                        <option value="huobi">Huobi</option>
+                                        <option value="bybit">Bybit</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">API Key</label>
+                                    <input type="text" class="form-control" id="apiKey" placeholder="输入API Key">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">API Secret</label>
+                                    <input type="password" class="form-control" id="apiSecret" placeholder="输入API Secret">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Passphrase (OKX/Bybit)</label>
+                                    <input type="password" class="form-control" id="apiPassphrase" placeholder="输入Passphrase">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">权限</label>
+                                    <div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="checkbox" id="permRead" checked>
+                                            <label class="form-check-label" for="permRead">读取</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="checkbox" id="permTrade" checked>
+                                            <label class="form-check-label" for="permTrade">交易</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="checkbox" id="permWithdraw">
+                                            <label class="form-check-label" for="permWithdraw">提现</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-primary" onclick="saveExchangeConfig()">保存配置</button>
+                                    <button type="button" class="btn btn-success" onclick="testExchangeConnection()">测试连接</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- 跨交易所资金管理 -->
+                    <div class="card mt-3">
+                        <div class="card-header">资金汇总</div>
+                        <div class="card-body">
+                            <table class="table">
+                                <thead>
+                                    <tr><th>币种</th><th>Binance</th><th>OKX</th><th>Huobi</th><th>总计</th><th>美元价值</th></tr>
+                                </thead>
+                                <tbody id="fundsSummary">
+                                    <tr>
+                                        <td><strong>USDT</strong></td>
+                                        <td>10,000.00</td>
+                                        <td>5,000.00</td>
+                                        <td>3,000.00</td>
+                                        <td><strong>18,000.00</strong></td>
+                                        <td>$18,000.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>BTC</strong></td>
+                                        <td>0.50</td>
+                                        <td>0.30</td>
+                                        <td>0.20</td>
+                                        <td><strong>1.00</strong></td>
+                                        <td>$45,000.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>ETH</strong></td>
+                                        <td>10.00</td>
+                                        <td>5.00</td>
+                                        <td>5.00</td>
+                                        <td><strong>20.00</strong></td>
+                                        <td>$40,000.00</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="table-info">
+                                        <td><strong>总计</strong></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td><strong>$103,000.00</strong></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 审计日志 -->
+                <div id="audit" class="content-section">
+                    <h2>审计日志</h2>
+
+                    <!-- 统计 -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="text-muted">今日操作</h5>
+                                    <h3>1,234</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="text-muted">敏感操作</h5>
+                                    <h3 class="text-warning">15</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="text-muted">失败操作</h5>
+                                    <h3 class="text-danger">23</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="text-muted">活跃用户</h5>
+                                    <h3 class="text-primary">5</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 筛选 -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <input type="text" class="form-control" id="auditSearch" placeholder="搜索...">
+                                </div>
+                                <div class="col-md-2">
+                                    <select class="form-select" id="auditType">
+                                        <option value="">所有类型</option>
+                                        <option value="login">登录</option>
+                                        <option value="create">创建</option>
+                                        <option value="update">更新</option>
+                                        <option value="delete">删除</option>
+                                        <option value="sensitive">敏感操作</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <input type="date" class="form-control" id="auditDate">
+                                </div>
+                                <div class="col-md-2">
+                                    <input type="text" class="form-control" id="auditUser" placeholder="用户">
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-primary" onclick="loadAuditLogs()">查询</button>
+                                    <button class="btn btn-secondary" onclick="exportAuditLogs()">导出</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 日志列表 -->
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                                <table class="table table-hover table-sm">
+                                    <thead class="sticky-top bg-light">
+                                        <tr>
+                                            <th>时间</th>
+                                            <th>用户</th>
+                                            <th>操作</th>
+                                            <th>类型</th>
+                                            <th>IP地址</th>
+                                            <th>结果</th>
+                                            <th>详情</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="auditLogList">
+                                        <tr>
+                                            <td>2025-01-03 10:30:15</td>
+                                            <td>admin</td>
+                                            <td>创建机器人</td>
+                                            <td><span class="badge bg-primary">create</span></td>
+                                            <td>192.168.1.100</td>
+                                            <td><span class="badge bg-success">成功</span></td>
+                                            <td><button class="btn btn-sm btn-link" onclick="showAuditDetail(1)">查看</button></td>
+                                        </tr>
+                                        <tr>
+                                            <td>2025-01-03 10:28:30</td>
+                                            <td>admin</td>
+                                            <td>登录</td>
+                                            <td><span class="badge bg-info">login</span></td>
+                                            <td>192.168.1.100</td>
+                                            <td><span class="badge bg-success">成功</span></td>
+                                            <td><button class="btn btn-sm btn-link" onclick="showAuditDetail(2)">查看</button></td>
+                                        </tr>
+                                        <tr>
+                                            <td>2025-01-03 10:25:10</td>
+                                            <td>user1</td>
+                                            <td>修改API密钥</td>
+                                            <td><span class="badge bg-warning">sensitive</span></td>
+                                            <td>192.168.1.101</td>
+                                            <td><span class="badge bg-danger">失败</span></td>
+                                            <td><button class="btn btn-sm btn-link" onclick="showAuditDetail(3)">查看</button></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 性能监控 -->
+                <div id="monitor" class="content-section">
+                    <h2>性能监控</h2>
+
+                    <!-- 实时指标 -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="text-muted">CPU使用率</h6>
+                                    <h3 id="cpuUsage" class="text-primary">45%</h3>
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar bg-primary" id="cpuBar" style="width: 45%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="text-muted">内存使用率</h6>
+                                    <h3 id="memoryUsage" class="text-success">62%</h3>
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar bg-success" id="memoryBar" style="width: 62%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="text-muted">磁盘使用率</h6>
+                                    <h3 id="diskUsage" class="text-warning">38%</h3>
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar bg-warning" id="diskBar" style="width: 38%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="text-muted">网络带宽</h6>
+                                    <h3 id="networkUsage" class="text-info">12 MB/s</h3>
+                                    <small class="text-muted">↑ 5 MB/s ↓ 7 MB/s</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 接口性能 -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">接口响应时间</div>
+                                <div class="card-body">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr><th>接口</th><th>平均响应</th><th>最大响应</th><th>错误率</th><th>状态</th></tr>
+                                        </thead>
+                                        <tbody id="apiPerformance">
+                                            <tr>
+                                                <td>/api/bots</td>
+                                                <td>45ms</td>
+                                                <td>120ms</td>
+                                                <td>0.1%</td>
+                                                <td><span class="badge bg-success">正常</span></td>
+                                            </tr>
+                                            <tr>
+                                                <td>/api/orders</td>
+                                                <td>38ms</td>
+                                                <td>95ms</td>
+                                                <td>0.0%</td>
+                                                <td><span class="badge bg-success">正常</span></td>
+                                            </tr>
+                                            <tr>
+                                                <td>/api/trades</td>
+                                                <td>62ms</td>
+<td>180ms</td>
+                                                <td>0.2%</td>
+                                                <td><span class="badge bg-success">正常</span></td>
+                                            </tr>
+                                            <tr>
+                                                <td>/api/analytics</td>
+                                                <td>156ms</td>
+                                                <td>320ms</td>
+                                                <td>0.5%</td>
+                                                <td><span class="badge bg-warning">较慢</span></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">数据库性能</div>
+                                <div class="card-body">
+                                    <table class="table table-sm">
+                                        <tr><td>连接池</td><td>15/20</td><td><span class="badge bg-success">正常</span></td></tr>
+                                        <tr><td>查询缓存命中率</td><td>85.3%</td><td><span class="badge bg-success">优秀</span></td></tr>
+                                        <tr><td>平均查询时间</td><td>8.5ms</td><td><span class="badge bg-success">正常</span></td></tr>
+                                        <tr><td>慢查询数量</td><td>3</td><td><span class="badge bg-warning">需要优化</span></td></tr>
+                                        <tr><td>锁等待</td><td>0</td><td><span class="badge bg-success">无</span></td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- WebSocket连接 -->
+                    <div class="card mb-4">
+                        <div class="card-header">WebSocket连接</div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr><th>类型</th><th>活跃连接</th><th>消息/秒</th><th>平均延迟</th><th>状态</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>市场数据</td>
+                                        <td>5</td>
+                                        <td>150</td>
+                                        <td>12ms</td>
+                                        <td><span class="badge bg-success">正常</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>订单推送</td>
+                                        <td>3</td>
+                                        <td>50</td>
+                                        <td>8ms</td>
+                                        <td><span class="badge bg-success">正常</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>交易推送</td>
+                                        <td>4</td>
+                                        <td>80</td>
+                                        <td>10ms</td>
+                                        <td><span class="badge bg-success">正常</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 系统健康 -->
+                    <div class="card">
+                        <div class="card-header">系统健康检查</div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr><th>服务</th><th>状态</th><th>运行时间</th><th>最后检查</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>API服务</td>
+                                        <td><span class="badge bg-success">运行中</span></td>
+                                        <td>15天 3小时</td>
+                                        <td>刚刚</td>
+                                    </tr>
+                                    <tr>
+                                        <td>数据库</td>
+                                        <td><span class="badge bg-success">正常</span></td>
+                                        <td>15天 3小时</td>
+                                        <td>1分钟前</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Redis缓存</td>
+                                        <td><span class="badge bg-success">正常</span></td>
+                                        <td>15天 3小时</td>
+                                        <td>30秒前</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Binance连接</td>
+                                        <td><span class="badge bg-success">正常</span></td>
+                                        <td>2小时</td>
+                                        <td>10秒前</td>
+                                    </tr>
+                                    <tr>
+                                        <td>OKX连接</td>
+                                        <td><span class="badge bg-success">正常</span></td>
+                                        <td>1天</td>
+                                        <td>5秒前</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 数据库管理 -->
+                <div id="database" class="content-section">
+                    <h2>数据库管理</h2>
+
+                    <!-- 数据库状态 -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted">数据库大小</h6>
+                                    <h3>2.3 GB</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted">表数量</h6>
+                                    <h3>18</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted">总记录数</h6>
+                                    <h3>1,234,567</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 备份管理 -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>备份管理</span>
+                                <button class="btn btn-primary btn-sm" onclick="createBackup()">
+                                    <i class="bi bi-download"></i> 创建备份
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <table class="table">
+                                <thead>
+                                    <tr><th>备份名称</th><th>大小</th><th>创建时间</th><th>类型</th><th>操作</th></tr>
+                                </thead>
+                                <tbody id="backupList">
+                                    <tr>
+                                        <td>backup_20250103_103000.sql</td>
+                                        <td>245 MB</td>
+                                        <td>2025-01-03 10:30:00</td>
+                                        <td><span class="badge bg-success">完整</span></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-success" onclick="restoreBackup('backup_20250103_103000.sql')">恢复</button>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteBackup('backup_20250103_103000.sql')">删除</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>backup_20250102_103000.sql</td>
+                                        <td>240 MB</td>
+                                        <td>2025-01-02 10:30:00</td>
+                                        <td><span class="badge bg-success">完整</span></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-success" onclick="restoreBackup('backup_20250102_103000.sql')">恢复</button>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteBackup('backup_20250102_103000.sql')">删除</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 数据库优化 -->
+                    <div class="card mb-4">
+                        <div class="card-header">数据库优化</div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <h6>优化建议</h6>
+                                <ul>
+                                    <li>建议为trades表的created_at字段添加索引</li>
+                                    <li>orders表的status字段索引效率较低，建议重建</li>
+                                    <li>audit_logs表建议按月分区</li>
+                                </ul>
+                            </div>
+                            <button class="btn btn-primary" onclick="optimizeDatabase()">
+                                <i class="bi bi-lightning-charge"></i> 自动优化
+                            </button>
+                            <button class="btn btn-info" onclick="analyzeDatabase()">
+                                <i class="bi bi-search"></i> 分析表
+                            </button>
+                            <button class="btn btn-warning" onclick="vacuumDatabase()">
+                                <i class="bi bi-database"></i> 清理空间
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 索引管理 -->
+                    <div class="card">
+                        <div class="card-header">索引管理</div>
+                        <div class="card-body">
+                            <table class="table">
+                                <thead>
+                                    <tr><th>表名</th><th>索引名</th><th>类型</th><th>字段</th><th>大小</th><th>使用率</th><th>操作</th></tr>
+                                </thead>
+                                <tbody id="indexList">
+                                    <tr>
+                                        <td>trades</td>
+                                        <td>idx_trades_created_at</td>
+                                        <td>btree</td>
+                                        <td>created_at</td>
+                                        <td>12 MB</td>
+                                        <td>95%</td>
+                                        <td><button class="btn btn-sm btn-warning">重建</button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>orders</td>
+                                        <td>idx_orders_status</td>
+                                        <td>btree</td>
+                                        <td>status</td>
+                                        <td>8 MB</td>
+                                        <td>45%</td>
+                                        <td><button class="btn btn-sm btn-warning">重建</button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>bots</td>
+                                        <td>idx_bots_user_id</td>
+                                        <td>btree</td>
+                                        <td>user_id</td>
+                                        <td>2 MB</td>
+                                        <td>88%</td>
+                                        <td><button class="btn btn-sm btn-warning">重建</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 系统设置 -->
                 <div id="settings" class="content-section">
                     <h2>系统设置</h2>
@@ -957,11 +1645,365 @@
             }
         }
 
+        // ============ 用户管理模块 ============
+        async function loadUsers() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await axios.get(`${API_BASE}/rbac/users`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const users = response.data || [];
+                const tbody = document.getElementById('userList');
+                tbody.innerHTML = users.map(user => `
+                    <tr>
+                        <td>${user.id}</td>
+                        <td>${user.username}</td>
+                        <td>${user.email}</td>
+                        <td><span class="badge bg-info">${user.role || 'user'}</span></td>
+                        <td><span class="badge ${user.is_active ? 'bg-success' : 'bg-secondary'}">${user.is_active ? '启用' : '禁用'}</span></td>
+                        <td><span class="badge ${user.mfa_enabled ? 'bg-success' : 'bg-secondary'}">${user.mfa_enabled ? '已启用' : '未启用'}</span></td>
+                        <td>${user.last_login ? new Date(user.last_login).toLocaleString() : '从未登录'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="editUser(${user.id})">编辑</button>
+                            <button class="btn btn-sm btn-${user.is_active ? 'warning' : 'success'}" onclick="toggleUserStatus(${user.id})">${user.is_active ? '禁用' : '启用'}</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('加载用户失败:', error);
+            }
+        }
+
+        function showCreateUserModal() {
+            alert('创建用户功能');
+        }
+
+        function editUser(userId) {
+            alert(`编辑用户 ${userId}`);
+        }
+
+        async function toggleUserStatus(userId) {
+            if (!confirm('确定要切换用户状态吗？')) return;
+            try {
+                const token = localStorage.getItem('token');
+                await axios.put(`${API_BASE}/rbac/users/${userId}/toggle`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('操作成功');
+                loadUsers();
+            } catch (error) {
+                alert('操作失败');
+            }
+        }
+
+        async function loadRoles() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await axios.get(`${API_BASE}/rbac/roles`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const roles = response.data || [];
+                const tbody = document.getElementById('roleList');
+                tbody.innerHTML = roles.map(role => `
+                    <tr>
+                        <td>${role.id}</td>
+                        <td>${role.name}</td>
+                        <td>${role.description || ''}</td>
+                        <td>${role.user_count || 0}</td>
+                        <td><small>${role.permissions || '暂无'}</small></td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="editRole(${role.id})">编辑</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteRole(${role.id})">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('加载角色失败:', error);
+            }
+        }
+
+        // ============ 交易所管理模块 ============
+        async function refreshBalance(exchange) {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.post(`${API_BASE}/exchange/${exchange}/balance`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert(`已刷新 ${exchange} 余额`);
+            } catch (error) {
+                alert('刷新失败');
+            }
+        }
+
+        function configureExchange(exchange) {
+            document.getElementById('exchangeSelect').value = exchange;
+            loadExchangeConfig();
+        }
+
+        async function loadExchangeConfig() {
+            try {
+                const exchange = document.getElementById('exchangeSelect').value;
+                const token = localStorage.getItem('token');
+                const response = await axios.get(`${API_BASE}/exchanges/${exchange}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const config = response.data || {};
+                document.getElementById('apiKey').value = config.api_key || '';
+                document.getElementById('apiSecret').value = '';
+                document.getElementById('apiPassphrase').value = config.passphrase || '';
+            } catch (error) {
+                console.error('加载配置失败:', error);
+            }
+        }
+
+        async function saveExchangeConfig() {
+            try {
+                const exchange = document.getElementById('exchangeSelect').value;
+                const apiKey = document.getElementById('apiKey').value;
+                const apiSecret = document.getElementById('apiSecret').value;
+                const passphrase = document.getElementById('apiPassphrase').value;
+
+                const token = localStorage.getItem('token');
+                await axios.post(`${API_BASE}/exchanges/${exchange}/config`, {
+                    api_key: apiKey,
+                    api_secret: apiSecret,
+                    passphrase
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('配置保存成功');
+            } catch (error) {
+                alert('保存失败');
+            }
+        }
+
+        async function testExchangeConnection() {
+            try {
+                const exchange = document.getElementById('exchangeSelect').value;
+                const token = localStorage.getItem('token');
+                await axios.get(`${API_BASE}/exchange/test`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('连接成功！');
+            } catch (error) {
+                alert('连接失败');
+            }
+        }
+
+        // ============ 审计日志模块 ============
+        async function loadAuditLogs() {
+            try {
+                const token = localStorage.getItem('token');
+                const params = {};
+                if (document.getElementById('auditSearch').value) {
+                    params.search = document.getElementById('auditSearch').value;
+                }
+                if (document.getElementById('auditType').value) {
+                    params.action_type = document.getElementById('auditType').value;
+                }
+                if (document.getElementById('auditDate').value) {
+                    params.date = document.getElementById('auditDate').value;
+                }
+                if (document.getElementById('auditUser').value) {
+                    params.username = document.getElementById('auditUser').value;
+                }
+
+                const response = await axios.get(`${API_BASE}/audit/logs`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    params
+                });
+                const logs = response.data || [];
+                const tbody = document.getElementById('auditLogList');
+                tbody.innerHTML = logs.map(log => `
+                    <tr>
+                        <td>${new Date(log.created_at).toLocaleString()}</td>
+                        <td>${log.username}</td>
+                        <td>${log.action}</td>
+                        <td><span class="badge bg-${log.type === 'sensitive' ? 'warning' : log.type === 'login' ? 'info' : 'primary'}">${log.type}</span></td>
+                        <td>${log.ip_address}</td>
+                        <td><span class="badge bg-${log.success ? 'success' : 'danger'}">${log.success ? '成功' : '失败'}</span></td>
+                        <td><button class="btn btn-sm btn-link" onclick="showAuditDetail(${log.id})">查看</button></td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('加载审计日志失败:', error);
+            }
+        }
+
+        function showAuditDetail(logId) {
+            alert(`查看审计日志详情 ID: ${logId}`);
+        }
+
+        function exportAuditLogs() {
+            alert('导出审计日志');
+        }
+
+        // ============ 性能监控模块 ============
+        async function loadPerformanceMetrics() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await axios.get(`${API_BASE}/performance/metrics`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const metrics = response.data || {};
+                if (metrics.cpu) {
+                    document.getElementById('cpuUsage').textContent = metrics.cpu + '%';
+                    document.getElementById('cpuBar').style.width = metrics.cpu + '%';
+                }
+                if (metrics.memory) {
+                    document.getElementById('memoryUsage').textContent = metrics.memory + '%';
+                    document.getElementById('memoryBar').style.width = metrics.memory + '%';
+                }
+                if (metrics.disk) {
+                    document.getElementById('diskUsage').textContent = metrics.disk + '%';
+                    document.getElementById('diskBar').style.width = metrics.disk + '%';
+                }
+                if (metrics.network) {
+                    document.getElementById('networkUsage').textContent = metrics.network;
+                }
+            } catch (error) {
+                console.error('加载性能指标失败:', error);
+            }
+        }
+
+        async function loadApiPerformance() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await axios.get(`${API_BASE}/performance/api`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const apis = response.data || [];
+                const tbody = document.getElementById('apiPerformance');
+                tbody.innerHTML = apis.map(api => `
+                    <tr>
+                        <td>${api.endpoint}</td>
+                        <td>${api.avg_response_time}ms</td>
+                        <td>${api.max_response_time}ms</td>
+                        <td>${api.error_rate}%</td>
+                        <td><span class="badge bg-${api.status === 'normal' ? 'success' : 'warning'}">${api.status === 'normal' ? '正常' : '较慢'}</span></td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('加载API性能失败:', error);
+            }
+        }
+
+        // ============ 数据库管理模块 ============
+        async function createBackup() {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.post(`${API_BASE}/database/backup`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('备份创建成功');
+                loadBackups();
+            } catch (error) {
+                alert('备份创建失败');
+            }
+        }
+
+        async function restoreBackup(filename) {
+            if (!confirm(`确定要恢复备份 ${filename} 吗？此操作不可逆！`)) return;
+            try {
+                const token = localStorage.getItem('token');
+                await axios.post(`${API_BASE}/database/restore`, { filename }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('恢复成功，系统将重启');
+            } catch (error) {
+                alert('恢复失败');
+            }
+        }
+
+        async function deleteBackup(filename) {
+            if (!confirm(`确定要删除备份 ${filename} 吗？`)) return;
+            try {
+                const token = localStorage.getItem('token');
+                await axios.delete(`${API_BASE}/database/backup/${filename}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('删除成功');
+                loadBackups();
+            } catch (error) {
+                alert('删除失败');
+            }
+        }
+
+        async function loadBackups() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await axios.get(`${API_BASE}/database/backups`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const backups = response.data || [];
+                const tbody = document.getElementById('backupList');
+                tbody.innerHTML = backups.map(backup => `
+                    <tr>
+                        <td>${backup.filename}</td>
+                        <td>${backup.size}</td>
+                        <td>${new Date(backup.created_at).toLocaleString()}</td>
+                        <td><span class="badge bg-success">${backup.type}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-success" onclick="restoreBackup('${backup.filename}')">恢复</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteBackup('${backup.filename}')">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('加载备份列表失败:', error);
+            }
+        }
+
+        async function optimizeDatabase() {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.post(`${API_BASE}/database/optimize`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('数据库优化成功');
+            } catch (error) {
+                alert('优化失败');
+            }
+        }
+
+        async function analyzeDatabase() {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.post(`${API_BASE}/database/analyze`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('数据库分析完成');
+            } catch (error) {
+                alert('分析失败');
+            }
+        }
+
+        async function vacuumDatabase() {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.post(`${API_BASE}/database/vacuum`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('空间清理完成');
+            } catch (error) {
+                alert('清理失败');
+            }
+        }
+
         // 页面加载
         document.addEventListener('DOMContentLoaded', () => {
             loadBots();
             loadTrades();
             loadOrders();
+            loadUsers();
+            loadRoles();
+            loadAuditLogs();
+            loadPerformanceMetrics();
+            loadApiPerformance();
+            loadBackups();
+
+            // 定期刷新性能指标（每30秒）
+            setInterval(loadPerformanceMetrics, 30000);
         });
     </script>
 </body>
