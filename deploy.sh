@@ -150,8 +150,8 @@ echo ""
 if [ ! -f ".env" ]; then
     echo "创建 .env 文件..."
     cat > .env << EOF
-# 数据库配置
-DATABASE_URL=postgresql://postgres@localhost:5432/trading_db
+# 数据库配置（使用 psycopg3 驱动）
+DATABASE_URL=postgresql+psycopg://postgres@localhost:5432/trading_db
 
 # Redis 配置
 REDIS_URL=redis://localhost:6379/0
