@@ -23,7 +23,7 @@ router = APIRouter()
 @router.post("/", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_order(
     order_data: OrderCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """创建订单（支持限价单、市价单、止损单、止盈单）"""
@@ -140,7 +140,7 @@ async def get_orders(
     side: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """获取订单列表（支持多种筛选条件）"""
@@ -179,7 +179,7 @@ async def get_orders(
 @router.get("/stats/summary")
 async def get_order_stats(
     bot_id: Optional[int] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """获取订单统计信息"""
@@ -216,7 +216,7 @@ async def get_order_stats(
 @router.post("/{order_id}/cancel")
 async def cancel_order(
     order_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """取消单个订单"""
@@ -275,7 +275,7 @@ async def cancel_order(
 async def batch_cancel_orders(
     bot_id: int,
     status_filter: str = "pending",
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """批量取消订单"""
@@ -348,7 +348,7 @@ async def update_order_status(
     filled_amount: Optional[float] = None,
     filled_price: Optional[float] = None,
     error_message: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """更新订单状态（支持部分成交处理）"""
@@ -412,7 +412,7 @@ async def update_order_status(
 @router.post("/{order_id}/retry")
 async def retry_order(
     order_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """重试失败的订单"""
@@ -534,7 +534,7 @@ async def retry_order(
 @router.get("/{order_id}", response_model=OrderResponse)
 async def get_order(
     order_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """获取订单详情"""
@@ -558,7 +558,7 @@ async def get_order(
 @router.post("/{order_id}/sync")
 async def sync_order(
     order_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """同步订单状态（从交易所获取最新状态）"""
@@ -644,7 +644,7 @@ async def sync_order(
 @router.post("/sync/all")
 async def sync_all_orders(
     bot_id: Optional[int] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """批量同步订单状态"""

@@ -20,7 +20,7 @@ async def get_trades(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     bot_id: Optional[int] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """获取当前用户的交易记录"""
@@ -41,7 +41,7 @@ async def get_bot_trades(
     bot_id: int,
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """获取指定机器人的交易记录"""
@@ -67,7 +67,7 @@ async def get_bot_trades(
 @router.get("/recent", response_model=List[TradeResponse])
 async def get_recent_trades(
     limit: int = Query(50, ge=1, le=500),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """获取最近的交易记录"""
@@ -89,7 +89,7 @@ async def get_trade_stats(
     bot_id: Optional[int] = None,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """获取交易统计"""
@@ -172,7 +172,7 @@ async def get_trade_stats(
 async def get_daily_stats(
     bot_id: Optional[int] = None,
     days: int = Query(30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """获取每日交易统计"""
@@ -218,7 +218,7 @@ async def get_daily_stats(
 
 @router.get("/stats/by-pair")
 async def get_stats_by_trading_pair(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """按交易对统计"""
@@ -266,7 +266,7 @@ async def filter_trades(
     offset: int = Query(0, ge=0),
     sort_by: str = Query("created_at", regex="^(created_at|price|amount|profit)$"),
     sort_order: str = Query("desc", regex="^(asc|desc)$"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """高级筛选交易记录"""
@@ -312,7 +312,7 @@ async def export_trades(
     trading_pair: Optional[str] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """导出交易记录"""

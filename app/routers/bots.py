@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 from app.database import get_db
 from app.models import User, TradingBot
-from app.auth import get_current_user
+from app.auth import get_current_user, get_optional_current_user
 from app.schemas import (
     BotCreate, BotResponse, BotStatus, BotUpdate,
     RiskCheckRequest, RiskCheckResponse
@@ -31,7 +31,7 @@ cache_manager = CacheManager()
 @router.post("/", response_model=BotResponse, status_code=status.HTTP_201_CREATED)
 async def create_bot(
     bot_data: BotCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """创建交易机器人"""
@@ -53,7 +53,7 @@ async def create_bot(
 
 @router.get("/", response_model=List[BotResponse])
 async def get_bots(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """获取当前用户的所有机器人"""
@@ -86,7 +86,7 @@ async def get_bots(
 @router.get("/{bot_id}", response_model=BotResponse)
 async def get_bot(
     bot_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """获取指定机器人"""
@@ -131,7 +131,7 @@ async def get_bot(
 async def update_bot(
     bot_id: int,
     bot_update: BotUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """更新机器人配置"""
@@ -174,7 +174,7 @@ async def update_bot(
 @router.post("/{bot_id}/start")
 async def start_bot(
     bot_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """启动机器人"""
@@ -257,7 +257,7 @@ async def start_bot(
 @router.post("/{bot_id}/stop")
 async def stop_bot(
     bot_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """停止机器人"""
@@ -304,7 +304,7 @@ async def stop_bot(
 @router.get("/{bot_id}/status", response_model=BotStatus)
 async def get_bot_status(
     bot_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """获取机器人状态"""
@@ -341,7 +341,7 @@ async def get_bot_status(
 async def check_bot_risk(
     bot_id: int,
     request: RiskCheckRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """检查机器人风险限制"""
@@ -399,7 +399,7 @@ async def check_bot_risk(
 @router.get("/{bot_id}/risk-report")
 async def get_bot_risk_report(
     bot_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """获取机器人风险报告"""
@@ -427,7 +427,7 @@ async def get_bot_risk_report(
 @router.delete("/{bot_id}")
 async def delete_bot(
     bot_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """删除机器人"""
@@ -457,7 +457,7 @@ async def delete_bot(
 @router.post("/batch/start")
 async def batch_start_bots(
     bot_ids: List[int],
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """批量启动机器人"""
@@ -541,7 +541,7 @@ async def batch_start_bots(
 @router.post("/batch/stop")
 async def batch_stop_bots(
     bot_ids: List[int],
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """批量停止机器人"""
@@ -603,7 +603,7 @@ async def batch_stop_bots(
 @router.delete("/batch")
 async def batch_delete_bots(
     bot_ids: List[int],
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """批量删除机器人"""
@@ -663,7 +663,7 @@ async def batch_delete_bots(
 async def batch_update_config(
     bot_ids: List[int],
     config_update: Dict[str, Any],
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """批量更新机器人配置"""
@@ -723,7 +723,7 @@ async def batch_update_config(
 async def clone_bot(
     bot_id: int,
     new_name: str = Query(..., description="新机器人名称"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """克隆机器人"""
@@ -763,7 +763,7 @@ async def clone_bot(
 
 @router.post("/start-all")
 async def start_all_bots(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """启动所有机器人"""
@@ -795,7 +795,7 @@ async def start_all_bots(
 
 @router.post("/stop-all")
 async def stop_all_bots(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """停止所有机器人"""

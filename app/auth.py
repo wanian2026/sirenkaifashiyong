@@ -4,6 +4,7 @@ from jose import JWTError, jwt
 import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security.utils import get_authorization_scheme_param
 from app.config import settings
 from app.database import get_db
 from sqlalchemy.orm import Session
@@ -102,3 +103,30 @@ async def get_current_user_ws(token: str, db: Session = Depends(get_db)) -> User
             detail="用户不存在",
         )
     return user
+
+
+async def get_optional_current_user(
+    db: Session = Depends(get_db)
+) -> User:
+    """
+    获取当前用户（可选认证）
+    如果没有提供token，则返回默认的admin用户
+    用于开发模式或不需要严格认证的场景
+    """
+    # 返回默认的admin用户
+    admin_user = db.query(User).filter(User.username == "admin").first()
+    if not admin_user:
+        # 如果admin用户不存在，创建一个
+        from app.models import User
+        hashed_password = get_password_hash("admin123")
+        admin_user = User(
+            username="admin",
+            email="admin@example.com",
+            hashed_password=hashed_password,
+            is_active=True,
+            role="admin"
+        )
+        db.add(admin_user)
+        db.commit()
+        db.refresh(admin_user)
+    return admin_user

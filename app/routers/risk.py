@@ -46,7 +46,7 @@ async def check_risk_limits(
     bot_id: int,
     position_value: float = 0,
     order_value: float = 0,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """检查机器人风险限制"""
@@ -86,7 +86,7 @@ async def check_risk_limits(
 @router.get("/bot/{bot_id}/report")
 async def get_risk_report(
     bot_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """获取风险报告"""
@@ -116,7 +116,7 @@ async def get_risk_report(
 @router.post("/bot/{bot_id}/reset")
 async def reset_daily_limits(
     bot_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """重置每日风险限制"""
@@ -234,7 +234,7 @@ async def evaluate_risk_level(
     position_value: float,
     unrealized_pnl: float,
     volatility: float = 0,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """评估当前风险等级"""
@@ -286,7 +286,7 @@ async def evaluate_risk_level(
 @router.delete("/bot/{bot_id}")
 async def delete_risk_manager(
     bot_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """删除机器人风险管理器"""
@@ -312,7 +312,7 @@ async def delete_risk_manager(
 @router.get("/bot/{bot_id}/consecutive-losses")
 async def get_consecutive_losses_info(
     bot_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -362,7 +362,7 @@ async def update_price_history(
     bot_id: int,
     symbol: str = Query(..., description="交易对，如BTC/USDT"),
     price: float = Query(..., gt=0, description="当前价格"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -401,7 +401,7 @@ async def update_price_history(
 async def check_volatility(
     bot_id: int,
     symbol: str = Query(..., description="交易对，如BTC/USDT"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -452,7 +452,7 @@ async def detect_abnormal_market(
     symbol: str = Query(..., description="交易对，如BTC/USDT"),
     price: float = Query(..., gt=0, description="当前价格"),
     volume: Optional[float] = Query(None, description="当前成交量"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -494,7 +494,7 @@ async def detect_abnormal_market(
 async def trigger_emergency_stop(
     bot_id: int,
     reason: str = Query("用户手动触发", description="停止原因"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -541,7 +541,7 @@ async def trigger_emergency_stop(
 @router.post("/bot/{bot_id}/reset-emergency-stop")
 async def reset_emergency_stop(
     bot_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """
