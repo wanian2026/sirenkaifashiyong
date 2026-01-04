@@ -41,7 +41,7 @@ def create_admin_user():
             email="admin@example.com",
             hashed_password=hashed_password,
             is_active=True,
-            is_superuser=True
+            role="admin"  # 角色: viewer, trader, admin
         )
 
         db.add(admin_user)
