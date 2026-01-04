@@ -19,20 +19,32 @@ if ! python -c "import fastapi" 2>/dev/null; then
     exit 1
 fi
 
-# 检查 PostgreSQL
-echo "🔍 检查 PostgreSQL..."
-if ! brew services list | grep postgresql | grep -q started; then
-    echo "⚠️  PostgreSQL 未运行，正在启动..."
-    brew services start postgresql@14
-    sleep 3
+# 检查数据库
+echo "🔍 检查数据库..."
+if grep -q "sqlite://" .env 2>/dev/null; then
+    echo "✅ 使用 SQLite 数据库"
+elif grep -q "postgresql" .env 2>/dev/null; then
+    if ! brew services list | grep postgresql | grep -q started 2>/dev/null; then
+        echo "⚠️  PostgreSQL 未运行，正在启动..."
+        brew services start postgresql@14 2>/dev/null || echo "   注意: 请确保已安装 PostgreSQL"
+        sleep 3
+    else
+        echo "✅ PostgreSQL 正在运行"
+    fi
 fi
 
-# 检查 Redis
+# 检查 Redis（可选）
 echo "🔍 检查 Redis..."
-if ! redis-cli ping &> /dev/null; then
-    echo "⚠️  Redis 未运行，正在启动..."
-    brew services start redis
-    sleep 3
+if command -v redis-cli &> /dev/null; then
+    if redis-cli ping &> /dev/null; then
+        echo "✅ Redis 正在运行"
+    else
+        echo "⚠️  Redis 未运行（可选服务）"
+        echo "   如需使用 Redis，请运行: brew services start redis"
+    fi
+else
+    echo "⚠️  Redis 未安装（可选服务）"
+    echo "   如需使用 Redis，请运行: brew install redis"
 fi
 
 # 创建日志目录
