@@ -839,15 +839,23 @@
             const password = document.getElementById('loginPassword').value;
             
             try {
-                // 使用 FormData 发送表单数据
-                const formData = new FormData();
+                // 使用 URLSearchParams 发送表单数据（确保使用 application/x-www-form-urlencoded）
+                const formData = new URLSearchParams();
                 formData.append('username', username);
                 formData.append('password', password);
-                
+
+                console.log('正在登录...', username);
+                console.log('请求URL:', `${API_BASE}/auth/login`);
+
                 const response = await fetch(`${API_BASE}/auth/login`, {
                     method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
                     body: formData
                 });
+
+                console.log('响应状态:', response.status, response.statusText);
                 
                 if (response.ok) {
                     const data = await response.json();
