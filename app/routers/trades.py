@@ -5,7 +5,7 @@ from typing import List, Optional
 from datetime import datetime, timedelta, date
 from app.database import get_db
 from app.models import User, Trade, TradingBot
-from app.auth import get_current_user
+from app.auth import get_current_user, get_optional_current_user
 from app.schemas import TradeResponse, TradeFilter
 from sqlalchemy import func, extract, case
 import csv

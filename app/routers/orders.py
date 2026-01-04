@@ -8,7 +8,7 @@ from typing import List, Optional
 from datetime import datetime
 from app.database import get_db
 from app.models import User, GridOrder, TradingBot
-from app.auth import get_current_user
+from app.auth import get_current_user, get_optional_current_user
 from app.exchange import ExchangeAPI
 from app.schemas import OrderCreate, OrderResponse, OrderUpdate
 from app.config import settings
