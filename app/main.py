@@ -6,7 +6,8 @@ from app.database import engine
 from app.models import Base
 from app.routers import (
     auth, bots, trades, orders, risk, backtest,
-    notifications, rbac, optimization, exchange, exchanges, analytics, strategies, websocket, audit_log, log_manager, database_manager, performance_monitor, bot_performance, risk_enhanced
+    notifications, rbac, optimization, exchange, exchanges, analytics, strategies, websocket, audit_log, log_manager, database_manager, performance_monitor, bot_performance
+    # risk_enhanced  # 暂时注释，依赖的模块不存在
 )
 from app.middleware import AuditLogMiddleware
 from app.websocket import (
@@ -78,7 +79,7 @@ app.include_router(log_manager.router, tags=["日志管理"])
 app.include_router(database_manager.router, tags=["数据库管理"])
 app.include_router(performance_monitor.router, tags=["性能监控"])
 app.include_router(bot_performance.router, tags=["机器人性能管理"])
-app.include_router(risk_enhanced.router, prefix="/api", tags=["风险管理增强"])
+# app.include_router(risk_enhanced.router, prefix="/api", tags=["风险管理增强"])  # 暂时注释
 
 
 @app.get("/")
