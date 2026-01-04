@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #000;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #333;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .result.info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        h1, h2 {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 登录功能测试</h1>
+
+        <h2>方法 1: 使用 fetch + URLSearchParams</h2>
+        <div class="form-group">
+            <label>用户名</label>
+            <input type="text" id="username1" value="admin">
+        </div>
+        <div class="form-group">
+            <label>密码</label>
+            <input type="password" id="password1" value="admin123">
+        </div>
+        <button onclick="testLogin1()">测试登录</button>
+        <div id="result1" class="result"></div>
+
+        <hr style="margin: 30px 0;">
+
+        <h2>方法 2: 使用 fetch + FormData</h2>
+        <div class="form-group">
+            <label>用户名</label>
+            <input type="text" id="username2" value="admin">
+        </div>
+        <div class="form-group">
+            <label>密码</label>
+            <input type="password" id="password2" value="admin123">
+        </div>
+        <button onclick="testLogin2()">测试登录</button>
+        <div id="result2" class="result"></div>
+
+        <hr style="margin: 30px 0;">
+
+        <h2>方法 3: 使用原生 XMLHttpRequest</h2>
+        <div class="form-group">
+            <label>用户名</label>
+            <input type="text" id="username3" value="admin">
+        </div>
+        <div class="form-group">
+            <label>密码</label>
+            <input type="password" id="password3" value="admin123">
+        </div>
+        <button onclick="testLogin3()">测试登录</button>
+        <div id="result3" class="result"></div>
+
+        <hr style="margin: 30px 0;">
+
+        <h2>方法 4: 使用表单提交</h2>
+        <form action="/api/auth/login" method="POST" target="result4">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" name="username" value="admin">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" name="password" value="admin123">
+            </div>
+            <button type="submit">测试登录</button>
+        </form>
+        <iframe name="result4" id="result4" style="width: 100%; height: 200px; border: 1px solid #ddd; margin-top: 15px;"></iframe>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+
+        // 方法 1: fetch + URLSearchParams
+        async function testLogin1() {
+            const resultDiv = document.getElementById('result1');
+            const username = document.getElementById('username1').value;
+            const password = document.getElementById('password1').value;
+
+            resultDiv.textContent = '发送请求中...';
+            resultDiv.className = 'result info';
+
+            try {
+                const formData = new URLSearchParams();
+                formData.append('username', username);
+                formData.append('password', password);
+
+                console.log('请求配置:', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: formData.toString()
+                });
+
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: formData
+                });
+
+                console.log('响应状态:', response.status, response.statusText);
+
+                const data = await response.json();
+                console.log('响应数据:', data);
+
+                if (response.ok) {
+                    resultDiv.textContent = `✅ 登录成功！\n\n状态码: ${response.status}\n\n返回数据:\n${JSON.stringify(data, null, 2)}`;
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = `❌ 登录失败！\n\n状态码: ${response.status}\n状态文本: ${response.statusText}\n\n错误信息:\n${JSON.stringify(data, null, 2)}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                console.error('错误:', error);
+                resultDiv.textContent = `❌ 请求出错！\n\n错误信息:\n${error.message}\n\n请打开浏览器控制台查看详细信息（F12）`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        // 方法 2: fetch + FormData
+        async function testLogin2() {
+            const resultDiv = document.getElementById('result2');
+            const username = document.getElementById('username2').value;
+            const password = document.getElementById('password2').value;
+
+            resultDiv.textContent = '发送请求中...';
+            resultDiv.className = 'result info';
+
+            try {
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('password', password);
+
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.textContent = `✅ 登录成功！\n\n状态码: ${response.status}\n\n返回数据:\n${JSON.stringify(data, null, 2)}`;
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = `❌ 登录失败！\n\n状态码: ${response.status}\n状态文本: ${response.statusText}\n\n错误信息:\n${JSON.stringify(data, null, 2)}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ 请求出错！\n\n错误信息:\n${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        // 方法 3: XMLHttpRequest
+        function testLogin3() {
+            const resultDiv = document.getElementById('result3');
+            const username = document.getElementById('username3').value;
+            const password = document.getElementById('password3').value;
+
+            resultDiv.textContent = '发送请求中...';
+            resultDiv.className = 'result info';
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `${API_BASE}/auth/login`, true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+
+            xhr.onload = function() {
+                console.log('XHR响应状态:', xhr.status, xhr.statusText);
+                console.log('XHR响应文本:', xhr.responseText);
+
+                if (xhr.status === 200) {
+                    const data = JSON.parse(xhr.responseText);
+                    resultDiv.textContent = `✅ 登录成功！\n\n状态码: ${xhr.status}\n\n返回数据:\n${JSON.stringify(data, null, 2)}`;
+                    resultDiv.className = 'result success';
+                } else {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        resultDiv.textContent = `❌ 登录失败！\n\n状态码: ${xhr.status}\n状态文本: ${xhr.statusText}\n\n错误信息:\n${JSON.stringify(data, null, 2)}`;
+                    } catch (e) {
+                        resultDiv.textContent = `❌ 登录失败！\n\n状态码: ${xhr.status}\n状态文本: ${xhr.statusText}\n\n响应内容:\n${xhr.responseText}`;
+                    }
+                    resultDiv.className = 'result error';
+                }
+            };
+
+            xhr.onerror = function() {
+                console.error('XHR错误:', xhr);
+                resultDiv.textContent = `❌ 请求出错！\n\n请打开浏览器控制台查看详细信息（F12）`;
+                resultDiv.className = 'result error';
+            };
+
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
+
+            console.log('XHR请求体:', formData.toString());
+            xhr.send(formData);
+        }
+
+        // 页面加载时自动测试第一个方法
+        window.onload = function() {
+            console.log('页面加载完成，可以开始测试登录功能');
+            console.log('后端API地址:', `${API_BASE}/auth/login`);
+            console.log('建议：打开浏览器控制台（F12）查看详细日志');
+        };
+    </script>
+</body>
+</html>
