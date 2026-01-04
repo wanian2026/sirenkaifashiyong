@@ -839,10 +839,14 @@
             const password = document.getElementById('loginPassword').value;
             
             try {
+                // 使用 FormData 发送表单数据
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('password', password);
+                
                 const response = await fetch(`${API_BASE}/auth/login`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: formData
                 });
                 
                 if (response.ok) {
@@ -860,7 +864,8 @@
                     initBots();
                     connectWebSocket();
                 } else {
-                    alert('登录失败，请检查用户名和密码');
+                    const error = await response.json();
+                    alert('登录失败：' + (error.detail || '请检查用户名和密码'));
                 }
             } catch (error) {
                 console.error('登录错误:', error);
